@@ -1,13 +1,10 @@
-# Mapa de Correlatividades · Ciencia Política UBA
+# Mapa de Correlatividades · Ciencia Política · UBA Sociales
 
-Tracker interactivo de correlatividades de la carrera de **Ciencia Política**
-(UBA Sociales, Plan 8558/17). Marcá las materias que aprobaste y el mapa te muestra,
-para cada asignatura, qué correlativas pide, cuáles te faltan y qué materias abre.
-También calcula los hitos del idioma (6 aprobadas) y del ciclo orientado (12 aprobadas
-+ la cabecera de tu orientación).
+Tracker interactivo de correlatividades de **Ciencia Política** (UBA Sociales, Plan 8558/17): marcás las materias que aprobaste y el mapa te dice, materia por materia, qué correlativas te pide, cuáles te faltan y qué materias se te abren.
 
-El progreso se guarda automáticamente en el navegador (`localStorage`), así que se
-conserva al recargar la página.
+![Mapa de Correlatividades · Ciencia Política · UBA Sociales](docs/screenshot.png)
+
+Además de las correlativas directas, calcula los hitos del **idioma** (6 aprobadas) y del **ciclo orientado** (12 aprobadas + la cabecera de tu orientación). El progreso se guarda automáticamente en el navegador (`localStorage`), así que se conserva al recargar la página.
 
 > Correlativas según la caja curricular de la Res. (CS) N° 8558/17.
 
@@ -33,3 +30,8 @@ Otros scripts:
 npm run build   # build de producción en dist/
 npm run preview # sirve el build de dist/ para verificar
 ```
+
+## Assets
+
+La imagen de previsualización para redes (`public/og-image.png`, 1200×630) se genera
+con [`scripts/gen-og.mjs`](scripts/gen-og.mjs) (requiere `@napi-rs/canvas`).

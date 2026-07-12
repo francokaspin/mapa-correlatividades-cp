@@ -367,9 +367,30 @@ export default function MapaCorrelatividades() {
         </section>
 
         <footer className="pie">
-          Correlativas según la caja curricular de la Res. (CS) N° 8558/17. Para cursar alcanza con tener la
-          correlativa cursada (regularizada); el ciclo orientado exige 12 finales aprobados. Tu progreso queda
-          guardado en este navegador.
+          <p className="pie-nota">
+            Correlativas según la caja curricular de la Res. (CS) N° 8558/17. Para cursar alcanza con tener la
+            correlativa cursada (regularizada); el ciclo orientado exige 12 finales aprobados. Tu progreso queda
+            guardado en este navegador.
+          </p>
+          <p className="pie-creditos">
+            Hecho por{" "}
+            <a
+              href="https://github.com/francokaspin"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Franco Kaspin
+            </a>{" "}
+            · estudiante de Ciencia Política
+            <span className="pie-sep" aria-hidden="true">·</span>
+            <a
+              href="https://github.com/francokaspin/mapa-correlatividades-cp/issues"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              ¿Encontraste un error? Avisame
+            </a>
+          </p>
         </footer>
       </main>
     </div>
@@ -565,7 +586,21 @@ const CSS = `
   .pie {
     margin-top: 26px; padding-top: 12px;
     border-top: 1px dashed rgba(245,241,224,.25);
-    font-size: 11px; opacity: .6; line-height: 1.5;
+    font-size: 11px; line-height: 1.5;
+    display: grid; gap: 8px;
+  }
+  .pie-nota { opacity: .6; }
+  .pie-creditos { opacity: .85; font-weight: 600; }
+  .pie-creditos a {
+    color: var(--lima); text-decoration: none;
+    border-bottom: 1px solid rgba(200,214,43,.4);
+    transition: border-color .12s ease, opacity .12s ease;
+  }
+  .pie-creditos a:hover { border-bottom-color: var(--lima); }
+  .pie-creditos a:focus-visible { outline: 2px solid var(--lima); outline-offset: 2px; border-radius: 2px; }
+  .pie-sep { margin: 0 8px; opacity: .45; }
+  @media (max-width: 520px) {
+    .pie-sep { display: block; height: 0; margin: 4px 0; overflow: hidden; }
   }
 
   @media (prefers-reduced-motion: reduce) {
