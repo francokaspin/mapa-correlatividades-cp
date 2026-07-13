@@ -1,4 +1,6 @@
 import cpData from "./cp.js";
+import { MATERIAS as RT_MATERIAS, OPTATIVAS as RT_OPTATIVAS, IDIOMA as RT_IDIOMA } from "./rt.js";
+import { CP_UI, RT_UI } from "./ui.js";
 
 export const CARRERAS = [
   {
@@ -6,7 +8,7 @@ export const CARRERAS = [
     nombre: "Ciencia Política",
     color: "#C8D62B",
     estado: "activa",
-    data: cpData,
+    data: { plan: cpData.plan, ui: CP_UI, legacyKey: "cp8558_progreso_v1" },
   },
   {
     id: "sociologia",
@@ -23,11 +25,14 @@ export const CARRERAS = [
     data: null,
   },
   {
-    id: "relaciones-del-trabajo",
+    id: "rt",
     nombre: "Relaciones del Trabajo",
-    color: "#F29723",
-    estado: "en-preparacion",
-    data: null,
+    color: "#22B8D6",
+    estado: "activa",
+    data: {
+      plan: { general: RT_MATERIAS, optativas: RT_OPTATIVAS, idioma: RT_IDIOMA },
+      ui: RT_UI,
+    },
   },
   {
     id: "trabajo-social",

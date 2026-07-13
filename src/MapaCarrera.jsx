@@ -1,119 +1,85 @@
 import { useState, useEffect, useRef } from "react";
+import {
+  getProgressKey,
+  migrateProgress,
+  getSubjectStatus,
+  countGeneral,
+} from "./data/evaluator.js";
 
 /* ============================================================
-   MAPA DE CORRELATIVIDADES · CIENCIA POLÍTICA · UBA
-   Datos: caja curricular de la Res. (CS) N° 8558/17
-   (verificada página por página del expediente EXP-UBA 85.775/2016)
-
-   - `req` = lista COMPLETA oficial de correlativas.
-   - Para mostrar "pide / te falta / abre" se usa la reducción
-     transitiva (las flechas directas, como en el mapa).
-   - Ciclo Orientado: 12 aprobadas del ciclo general, incluida
-     la asignatura CABECERA de la orientación elegida.
-   - Idioma: Nivel I con 6 materias aprobadas (régimen de la
-     facultad); II y III encadenados.
+   MAPA DE CORRELATIVIDADES · componente genérico (data-driven)
+   Renderiza cualquier carrera a partir de:
+     carrera.data.plan  → bloques de materias ({ general, idioma, ... })
+     carrera.data.ui    → presentación (eyebrow, bloques, milestones, footer)
+     carrera.color      → color de acento (--accent)
+   El estado de cada materia se resuelve con el evaluador genérico
+   (src/data/evaluator.js). Para CP el resultado es idéntico a hoy.
    ============================================================ */
 
-const MATERIAS = [
-  // —— orden visual del mapa (fila por fila) ——
-  { id: "eco",  n: "Economía", s: "Economía", req: [] },
-  { id: "tps1", n: "Teoría Política y Social I", s: "Teo I", req: [] },
-  { id: "fcp1", n: "Fundamentos de Ciencia Política I", s: "Fundamentos I", req: [] },
-  { id: "fym",  n: "Filosofía y Métodos de las Ciencias Sociales", s: "Filo y Métodos", req: [] },
-  { id: "tdc",  n: "Teoría y Derecho Constitucional", s: "Derecho Const.", req: [] },
-  { id: "hc",   n: "Historia Contemporánea", s: "H. Contemporánea", req: [] },
-
-  { id: "tps2", n: "Teoría Política y Social II", s: "Teo II", req: ["tps1"] },
-  { id: "tsoc", n: "Teoría Sociológica", s: "T. Sociológica", req: ["tps1"] },
-  { id: "fcp2", n: "Fundamentos de Ciencia Política II", s: "Fundamentos II", req: ["fcp1"] },
-  { id: "met1", n: "Metodología de la Investigación en Ciencia Política I", s: "Metodología I", req: ["fym"] },
-  { id: "filo", n: "Filosofía", s: "Filosofía", req: ["fym"] },
-  { id: "ha",   n: "Historia Argentina", s: "H. Argentina", req: [] },
-  { id: "pa",   n: "Política Argentina", s: "Pol. Argentina", req: ["hc", "ha", "fcp1", "fcp2", "spol", "spc"] },
-
-  { id: "tpc",  n: "Teoría Política Contemporánea", s: "Teo. Contemporánea", req: ["hc", "tps1", "tps2", "tsoc"] },
-  { id: "spol", n: "Sociología Política", s: "Socio. Política", req: ["hc", "fcp1", "fcp2"] },
-  { id: "met2", n: "Metodología de la Investigación en Ciencia Política II", s: "Metodología II", req: ["fym", "met1"] },
-  { id: "hl",   n: "Historia Latinoamericana", s: "H. Latinoamericana", req: [] },
-  { id: "pl",   n: "Política Latinoamericana", s: "Pol. Latinoamericana", req: ["fym", "met1", "met2", "hc", "hl", "fcp1", "fcp2", "spol"] },
-
-  { id: "app",  n: "Administración y Políticas Públicas", s: "Admin. y Pol. Públicas", req: ["fym", "met1", "met2", "eco", "hc", "tps1", "tps2", "tsoc", "tpc", "fcp2", "spol"] },
-  { id: "rrii", n: "Teoría de las Relaciones Internacionales", s: "RRII", req: ["fym", "met1", "met2", "hc", "tps1", "tps2", "tsoc", "tpc", "fcp1"] },
-  { id: "op",   n: "Opinión Pública", s: "Opinión Pública", req: ["fym", "met1", "met2", "hc", "tps1", "tps2", "tsoc", "fcp1", "spol"] },
-  { id: "spc",  n: "Sistemas Políticos Comparados", s: "Sist. Pol. Comparados", req: ["fym", "met1", "met2", "hc", "fcp1", "fcp2", "spol"] },
-];
-
-const IDIOMA = [
-  { id: "id1", n: "Idioma · Nivel I", s: "Idioma I", req: [], min: 6 },
-  { id: "id2", n: "Idioma · Nivel II", s: "Idioma II", req: ["id1"] },
-  { id: "id3", n: "Idioma · Nivel III", s: "Idioma III", req: ["id2"] },
-];
-
-const ORIENTADO = [
-  { id: "ele1", n: "Materia electiva 1", s: "Electiva 1", orientado: true },
-  { id: "ele2", n: "Materia electiva 2", s: "Electiva 2", orientado: true },
-  { id: "sem1", n: "Seminario 1", s: "Seminario 1", orientado: true },
-  { id: "sem2", n: "Seminario 2", s: "Seminario 2", orientado: true },
-  { id: "tao",  n: "Taller de orientación", s: "Taller", orientado: true },
-];
-
-const ORIENTACIONES = [
-  { id: "app",  label: "Estado, Admin. y Pol. Públicas" },
-  { id: "spc",  label: "Política Comparada" },
-  { id: "pl",   label: "Política Latinoamericana" },
-  { id: "rrii", label: "Relaciones Internacionales" },
-  { id: "op",   label: "Opinión Pública y Análisis Político" },
-  { id: "tpc",  label: "Teoría Política" },
-];
-
-const TODAS = [...MATERIAS, ...IDIOMA, ...ORIENTADO];
-const byId = Object.fromEntries(TODAS.map((m) => [m.id, m]));
-
-// ---- Ancestros y reducción transitiva (flechas directas, como el mapa) ----
-const ANC = {};
-function anc(id) {
-  if (ANC[id]) return ANC[id];
-  const s = new Set();
-  (byId[id]?.req || []).forEach((r) => {
-    s.add(r);
-    anc(r).forEach((x) => s.add(x));
+// Ancestros + reducción transitiva sobre las flechas DIRECTAS (req por id).
+// Los requisitos-objeto (min, orientation, or, …) no son flechas y se
+// muestran como copy especial, igual que en el mapa original.
+function buildGraph(items) {
+  const byId = Object.fromEntries(items.map((m) => [m.id, m]));
+  const stringReqs = (m) => (Array.isArray(m?.req) ? m.req : []).filter((r) => typeof r === "string");
+  const ANC = {};
+  const anc = (id) => {
+    if (ANC[id]) return ANC[id];
+    const s = new Set();
+    stringReqs(byId[id]).forEach((r) => {
+      s.add(r);
+      anc(r).forEach((x) => s.add(x));
+    });
+    return (ANC[id] = s);
+  };
+  const RED = {};
+  items.forEach((m) => {
+    const req = stringReqs(m);
+    RED[m.id] = req.filter((r) => !req.some((r2) => r2 !== r && anc(r2).has(r)));
   });
-  return (ANC[id] = s);
-}
-const RED = {};
-TODAS.forEach((m) => {
-  const req = m.req || [];
-  RED[m.id] = req.filter((r) => !req.some((r2) => r2 !== r && anc(r2).has(r)));
-});
-
-// Qué abre cada materia (según flechas directas)
-const ABRE = {};
-TODAS.forEach((m) => (RED[m.id] || []).forEach((r) => (ABRE[r] = [...(ABRE[r] || []), m.id])));
-
-const KEY = "cp8558_progreso_v1";
-
-function contarGeneral(okSet) {
-  return MATERIAS.reduce((a, m) => a + (okSet.has(m.id) ? 1 : 0), 0);
+  const ABRE = {};
+  items.forEach((m) => (RED[m.id] || []).forEach((r) => (ABRE[r] = [...(ABRE[r] || []), m.id])));
+  return { byId, RED, ABRE };
 }
 
-function estadoDe(it, okSet, nGen, ori) {
-  if (okSet.has(it.id)) return "ok";
-  if (it.orientado) {
-    if (nGen < 12) return "no";
-    const cabOk = ori ? okSet.has(ori) : ORIENTACIONES.some((o) => okSet.has(o.id));
-    return cabOk ? "go" : "no";
+// Mínimo "de la base" que pide una materia (it.min o un req { min, of:'general' }).
+function baseMinOf(it, countBase) {
+  if (typeof it.min === "number") return it.min;
+  const reqs = Array.isArray(it.req) ? it.req : [];
+  for (const r of reqs) {
+    if (r && typeof r === "object" && typeof r.min === "number" && (r.of == null || r.of === "general" || r.of === countBase)) {
+      return r.min;
+    }
   }
-  if (it.min && nGen < it.min) return "no";
-  if ((it.req || []).some((r) => !okSet.has(r))) return "no";
-  return "go";
+  return null;
 }
 
-function disponibles(okSet, ori) {
-  const n = contarGeneral(okSet);
-  return new Set(TODAS.filter((it) => estadoDe(it, okSet, n, ori) === "go").map((it) => it.id));
+function hasOrientationReq(it) {
+  const scan = (r) =>
+    !!r &&
+    typeof r === "object" &&
+    (r.orientation === true ||
+      (Array.isArray(r.includes) && r.includes.some(scan)) ||
+      (Array.isArray(r.or) && r.or.some(scan)) ||
+      (Array.isArray(r.and) && r.and.some(scan)));
+  return (Array.isArray(it.req) ? it.req : []).some(scan);
 }
 
-export default function MapaCorrelatividades() {
+export default function MapaCarrera({ carrera }) {
+  const { plan, ui } = carrera.data;
+  const accent = carrera.color || "#C8D62B";
+
+  const blocks = ui.blocks;
+  const baseArr = plan[ui.countBase] || [];
+  const baseIds = baseArr.map((m) => m.id);
+  const orientaciones = plan.orientaciones || [];
+  const orientationIds = orientaciones.map((o) => o.id);
+
+  // Todas las materias (en el orden de los bloques) y grafo de flechas.
+  const TODAS = blocks.flatMap((b) => plan[b.planKey] || []);
+  const { byId, RED, ABRE } = buildGraph(TODAS);
+  const KEY = getProgressKey(carrera.id);
+
   const [ok, setOk] = useState(() => new Set());
   const [ori, setOri] = useState(null);
   const [listo, setListo] = useState(false);
@@ -125,14 +91,12 @@ export default function MapaCorrelatividades() {
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(KEY);
-      if (raw) {
-        const p = JSON.parse(raw);
-        if (Array.isArray(p)) setOk(new Set(p));
-        else {
-          setOk(new Set(p.a || []));
-          setOri(p.o || null);
-        }
+      const saved = carrera.data.legacyKey
+        ? migrateProgress(carrera.id, carrera.data.legacyKey)
+        : parseSaved(localStorage.getItem(KEY));
+      if (saved) {
+        setOk(new Set(saved.a || []));
+        setOri(saved.o || null);
       }
     } catch (e) {
       /* sin avance guardado todavía */
@@ -142,7 +106,7 @@ export default function MapaCorrelatividades() {
       clearTimeout(tNuevas.current);
       clearTimeout(tTiembla.current);
     };
-  }, []);
+  }, [carrera.id]);
 
   const persistir = (s, o) => {
     try {
@@ -150,10 +114,22 @@ export default function MapaCorrelatividades() {
     } catch (e) {}
   };
 
-  const nGen = contarGeneral(ok);
+  const contextFor = (okSet, oriVal) => ({
+    generalIds: baseIds,
+    orientation: oriVal,
+    orientationIds,
+    remainingCount: TODAS.filter((t) => !okSet.has(t.id)).length,
+  });
+
+  const statusOf = (it, okSet, oriVal) => getSubjectStatus(it, okSet, contextFor(okSet, oriVal));
+
+  const disponibles = (okSet, oriVal) =>
+    new Set(TODAS.filter((it) => statusOf(it, okSet, oriVal) === "go").map((it) => it.id));
+
+  const nGen = countGeneral(ok, baseIds);
 
   const toggle = (it) => {
-    const est = estadoDe(it, ok, nGen, ori);
+    const est = statusOf(it, ok, ori);
     if (est === "no") {
       setTiembla(it.id);
       clearTimeout(tTiembla.current);
@@ -195,11 +171,13 @@ export default function MapaCorrelatividades() {
   };
 
   const Card = ({ it }) => {
-    const est = estadoDe(it, ok, nGen, ori);
+    const est = statusOf(it, ok, ori);
     const pide = RED[it.id] || [];
     const faltan = pide.filter((r) => !ok.has(r));
     const abre = (ABRE[it.id] || []).map((x) => byId[x].s);
     const esNueva = nuevas.has(it.id);
+    const bmin = baseMinOf(it, ui.countBase);
+    const hasOri = hasOrientationReq(it);
     return (
       <button
         className={`card ${est} ${esNueva ? "nueva" : ""} ${tiembla === it.id ? "tiembla" : ""}`}
@@ -211,17 +189,13 @@ export default function MapaCorrelatividades() {
         <span className="cuerpo">
           <span className="nom">{it.n}</span>
 
-          {it.orientado && est === "no" && nGen < 12 && (
-            <span className="meta falta">Pide 12 aprobadas del ciclo general · llevás {nGen}</span>
+          {bmin != null && est === "no" && nGen < bmin && (
+            <span className="meta falta">Pide {bmin} aprobadas {ui.countLabel} · llevás {nGen}</span>
           )}
-          {it.orientado && est === "no" && nGen >= 12 && (
+          {hasOri && est === "no" && nGen >= bmin && (
             <span className="meta falta">
               {ori ? `Te falta la cabecera: ${byId[ori].s}` : "Te falta aprobar la cabecera de una orientación"}
             </span>
-          )}
-
-          {!it.orientado && est === "no" && it.min && nGen < it.min && (
-            <span className="meta falta">Pide {it.min} aprobadas del ciclo general · llevás {nGen}</span>
           )}
           {est === "no" && faltan.length > 0 && (
             <span className="meta falta">Te falta: {faltan.map((r) => byId[r].s).join(" · ")}</span>
@@ -242,52 +216,50 @@ export default function MapaCorrelatividades() {
 
   if (!listo) {
     return (
-      <div className="pagina cargando">
+      <div className="pagina cargando" style={{ "--accent": accent }}>
         <style>{CSS}</style>
         <p>Cargando tu avance…</p>
       </div>
     );
   }
 
-  const pct = Math.round((nGen / MATERIAS.length) * 100);
-  const idiomaListo = nGen >= 6;
-  const orientadoListo = nGen >= 12;
-  const hechasIdioma = IDIOMA.filter((m) => ok.has(m.id)).length;
-  const hechasOri = ORIENTADO.filter((m) => ok.has(m.id)).length;
+  const total = baseIds.length;
+  const pct = Math.round((nGen / total) * 100);
 
   return (
-    <div className="pagina">
+    <div className="pagina" style={{ "--accent": accent }}>
       <style>{CSS}</style>
 
       <header className="cabecera">
-        <p className="eyebrow">Ciencia Política · UBA Sociales · Plan 8558/17</p>
+        <p className="eyebrow">{ui.eyebrow}</p>
         <h1>Mapa de correlatividades</h1>
 
         <div className="tablero">
           <div className="contador">
             <span className="num">{nGen}</span>
-            <span className="de">/{MATERIAS.length} del ciclo general</span>
+            <span className="de">/{total} {ui.countLabel}</span>
           </div>
 
-          <div className="progreso" role="img" aria-label={`${nGen} de ${MATERIAS.length} materias aprobadas`}>
+          <div className="progreso" role="img" aria-label={`${nGen} de ${total} materias aprobadas`}>
             <div className="barra">
               <div className="lleno" style={{ width: `${pct}%` }} />
-              <span className="tickbar" style={{ left: `${(6 / 22) * 100}%` }} />
-              <span className="tickbar" style={{ left: `${(12 / 22) * 100}%` }} />
+              {ui.milestones.map((m) => (
+                <span key={`t${m.at}`} className="tickbar" style={{ left: `${(m.at / total) * 100}%` }} />
+              ))}
             </div>
             <div className="marcas">
-              <span style={{ left: `${(6 / 22) * 100}%` }}>6 · idioma</span>
-              <span style={{ left: `${(12 / 22) * 100}%` }}>12 · c. orientado</span>
+              {ui.milestones.map((m) => (
+                <span key={`m${m.at}`} style={{ left: `${(m.at / total) * 100}%` }}>{m.tick}</span>
+              ))}
             </div>
           </div>
 
           <div className="hitos">
-            <span className={`pill ${idiomaListo ? "on" : ""}`}>
-              {idiomaListo ? "Idioma habilitado" : `Idioma: faltan ${6 - nGen}`}
-            </span>
-            <span className={`pill ${orientadoListo ? "on" : ""}`}>
-              {orientadoListo ? "12 para el orientado ✓" : `C. orientado: faltan ${12 - nGen}`}
-            </span>
+            {ui.milestones.map((m) => (
+              <span key={`p${m.at}`} className={`pill ${nGen >= m.at ? "on" : ""}`}>
+                {nGen >= m.at ? m.pillOn : m.pillOff(nGen)}
+              </span>
+            ))}
             <button className={`reset ${confirma ? "seguro" : ""}`} onClick={reset}>
               {confirma ? "¿Seguro? Tocá de nuevo" : "Reiniciar todo"}
             </button>
@@ -303,75 +275,46 @@ export default function MapaCorrelatividades() {
           <span className="guardado">Tocá una materia para marcarla · se guarda solo</span>
         </div>
 
-        <section className="bloque">
-          <div className="bloque-head">
-            <div>
-              <h2>Ciclo general</h2>
-              <p>En el orden del mapa. Cada tarjeta te dice qué pide (las flechas directas) y qué abre.</p>
-            </div>
-            <span className="conteo">{nGen}/22</span>
-          </div>
-          <div className="grilla">
-            {MATERIAS.map((m) => (
-              <Card key={m.id} it={m} />
-            ))}
-          </div>
-        </section>
+        {blocks.map((b) => {
+          const items = plan[b.planKey] || [];
+          const hechas = items.filter((m) => ok.has(m.id)).length;
+          return (
+            <section className="bloque" key={b.planKey}>
+              <div className="bloque-head">
+                <div>
+                  <h2>{b.title}</h2>
+                  <p>{b.subtitle}</p>
+                </div>
+                <span className="conteo">{hechas}/{items.length}</span>
+              </div>
 
-        <section className="bloque">
-          <div className="bloque-head">
-            <div>
-              <h2>Idioma</h2>
-              <p>Tres niveles de un idioma a elección (inglés, francés, portugués, italiano o alemán).</p>
-            </div>
-            <span className="conteo">{hechasIdioma}/3</span>
-          </div>
-          <div className="grilla">
-            {IDIOMA.map((m) => (
-              <Card key={m.id} it={m} />
-            ))}
-          </div>
-        </section>
+              {b.orientaciones && (
+                <div className="orientaciones">
+                  <span className="ori-label">Tu orientación:</span>
+                  {orientaciones.map((o) => (
+                    <button
+                      key={o.id}
+                      className={`ori ${ori === o.id ? "activa" : ""}`}
+                      onClick={() => elegirOri(o.id)}
+                    >
+                      {o.label}
+                      <em>{ok.has(o.id) ? " · cabecera ✓" : ` · cabecera: ${byId[o.id].s}`}</em>
+                    </button>
+                  ))}
+                </div>
+              )}
 
-        <section className="bloque">
-          <div className="bloque-head">
-            <div>
-              <h2>Ciclo orientado</h2>
-              <p>
-                2 electivas + 2 seminarios + 1 taller. Pide 12 aprobadas del ciclo general y que entre ellas
-                esté la materia cabecera de tu orientación.
-              </p>
-            </div>
-            <span className="conteo">{hechasOri}/5</span>
-          </div>
-
-          <div className="orientaciones">
-            <span className="ori-label">Tu orientación:</span>
-            {ORIENTACIONES.map((o) => (
-              <button
-                key={o.id}
-                className={`ori ${ori === o.id ? "activa" : ""}`}
-                onClick={() => elegirOri(o.id)}
-              >
-                {o.label}
-                <em>{ok.has(o.id) ? " · cabecera ✓" : ` · cabecera: ${byId[o.id].s}`}</em>
-              </button>
-            ))}
-          </div>
-
-          <div className="grilla">
-            {ORIENTADO.map((m) => (
-              <Card key={m.id} it={m} />
-            ))}
-          </div>
-        </section>
+              <div className="grilla">
+                {items.map((m) => (
+                  <Card key={m.id} it={m} />
+                ))}
+              </div>
+            </section>
+          );
+        })}
 
         <footer className="pie">
-          <p className="pie-nota">
-            Correlativas según la caja curricular de la Res. (CS) N° 8558/17. Para cursar alcanza con tener la
-            correlativa cursada (regularizada); el ciclo orientado exige 12 finales aprobados. Tu progreso queda
-            guardado en este navegador.
-          </p>
+          <p className="pie-nota">{ui.footer}</p>
           <p className="pie-creditos">
             Hecho por{" "}
             <a
@@ -397,6 +340,18 @@ export default function MapaCorrelatividades() {
   );
 }
 
+function parseSaved(raw) {
+  if (!raw) return null;
+  try {
+    const p = JSON.parse(raw);
+    if (Array.isArray(p)) return { a: p, o: null };
+    if (p && typeof p === "object") return { a: p.a || [], o: p.o ?? null };
+  } catch (e) {
+    return null;
+  }
+  return null;
+}
+
 const CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;600;800&display=swap');
 
@@ -409,6 +364,7 @@ const CSS = `
     --go: #F3C51D;
     --no: #E14B3B;
     --no-bg: #3B1512;
+    --accent: #C8D62B;
     --disp: 'Anton', 'Impact', 'Haettenschweiler', 'Arial Narrow Bold', sans-serif;
     --body: 'Archivo', 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
     --mono: 'Courier New', monospace;
@@ -417,7 +373,7 @@ const CSS = `
 
   .pagina {
     min-height: 100vh;
-    background: var(--lima);
+    background: var(--accent);
     font-family: var(--body);
     color: var(--negro);
     padding: clamp(14px, 3vw, 36px);
@@ -457,7 +413,7 @@ const CSS = `
     padding: 5px 12px; font-size: 12px; font-weight: 800;
     text-transform: uppercase; letter-spacing: .04em;
   }
-  .pill.on { background: var(--negro); color: var(--lima); }
+  .pill.on { background: var(--negro); color: var(--accent); }
   .reset {
     margin-left: auto; border: 2px solid var(--negro); background: var(--crema);
     border-radius: 999px; padding: 6px 14px; font-family: var(--body);
@@ -489,7 +445,7 @@ const CSS = `
   .bloque-head { display: flex; align-items: end; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
   .bloque-head h2 {
     font-family: var(--disp); font-weight: 400; text-transform: uppercase;
-    color: var(--lima); font-size: clamp(18px, 2.4vw, 24px); letter-spacing: .04em;
+    color: var(--accent); font-size: clamp(18px, 2.4vw, 24px); letter-spacing: .04em;
   }
   .bloque-head p { font-size: 12px; opacity: .7; margin-top: 2px; max-width: 640px; }
   .conteo { font-family: var(--mono); font-weight: 700; font-size: 15px; opacity: .85; white-space: nowrap; }
@@ -511,7 +467,7 @@ const CSS = `
     font-size: 11.5px; font-weight: 700; cursor: pointer;
   }
   .ori em { font-style: normal; opacity: .6; font-weight: 600; }
-  .ori.activa { background: var(--lima); border-color: var(--lima); color: var(--negro); }
+  .ori.activa { background: var(--accent); border-color: var(--accent); color: var(--negro); }
   .ori.activa em { opacity: .75; }
   .ori:focus-visible { outline: 3px solid var(--crema); outline-offset: 2px; }
 
@@ -559,7 +515,7 @@ const CSS = `
     position: absolute; top: -8px; right: 8px;
     transform: rotate(-7deg);
     font-family: var(--disp); font-size: 10px; letter-spacing: .12em;
-    color: #0c1c0e; background: var(--lima);
+    color: #0c1c0e; background: var(--accent);
     border: 2px solid #0c1c0e; border-radius: 4px; padding: 1px 7px;
   }
   .flash {
@@ -592,12 +548,12 @@ const CSS = `
   .pie-nota { opacity: .6; }
   .pie-creditos { opacity: .85; font-weight: 600; }
   .pie-creditos a {
-    color: var(--lima); text-decoration: none;
+    color: var(--accent); text-decoration: none;
     border-bottom: 1px solid rgba(200,214,43,.4);
     transition: border-color .12s ease, opacity .12s ease;
   }
-  .pie-creditos a:hover { border-bottom-color: var(--lima); }
-  .pie-creditos a:focus-visible { outline: 2px solid var(--lima); outline-offset: 2px; border-radius: 2px; }
+  .pie-creditos a:hover { border-bottom-color: var(--accent); }
+  .pie-creditos a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
   .pie-sep { margin: 0 8px; opacity: .45; }
   @media (max-width: 520px) {
     .pie-sep { display: block; height: 0; margin: 4px 0; overflow: hidden; }

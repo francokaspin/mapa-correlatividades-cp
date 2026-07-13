@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { CARRERAS } from "./data/carreras/index.js";
-import MapaCorrelatividades from "./MapaCorrelatividades.jsx";
+import MapaCarrera from "./MapaCarrera.jsx";
 import { CSS } from "./styles.js";
 
 const DEFAULT_TITLE = "Mapa de Correlatividades · UBA Sociales";
@@ -113,5 +113,5 @@ export default function App() {
     return <EnPreparacion carrera={carrera} />;
   }
 
-  return <MapaCorrelatividades carrera={carrera} />;
+  return <MapaCarrera carrera={carrera} />;
 }

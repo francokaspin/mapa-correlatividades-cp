@@ -1,6 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { getSubjectStatus, countGeneral, getProgressKey } from "./evaluator.js";
+import { getSubjectStatus, countGeneral, getProgressKey, migrateProgress } from "./evaluator.js";
 import cpData from "./carreras/cp.js";
+import {
+  MATERIAS as RT_MATERIAS,
+  OPTATIVAS as RT_OPTATIVAS,
+  IDIOMA as RT_IDIOMA,
+  HITO_INTERMEDIO,
+} from "./carreras/rt.js";
 
 const contextForPlan = (plan, okSet, orientation) => ({
   generalIds: plan.general.map((m) => m.id),
@@ -83,8 +89,113 @@ describe("evaluator", () => {
     expect(getSubjectStatus(plan.idioma.find((m) => m.id === "id2"), okSet, context)).toBe("no");
   });
 
+  it("CP: el ciclo orientado pide 12 del general + la cabecera de la orientación", () => {
+    const plan = cpData.plan;
+    const ele1 = plan.orientado.find((m) => m.id === "ele1");
+    const generalIds = plan.general.map((m) => m.id);
+    const orientationIds = plan.orientaciones.map((o) => o.id);
+    const ctx = (okSet, orientation = null) => ({ generalIds, orientation, orientationIds, remainingCount: 0 });
+
+    // 12 aprobadas SIN cabecera → bloqueada
+    const doceSinCab = new Set(generalIds.filter((id) => !orientationIds.includes(id)).slice(0, 12));
+    expect(countGeneral(doceSinCab, generalIds)).toBe(12);
+    expect(getSubjectStatus(ele1, doceSinCab, ctx(doceSinCab, null))).toBe("no");
+
+    // 12 aprobadas incluyendo la cabecera "app" → disponible
+    const doceConCab = new Set([...generalIds.filter((id) => id !== "app").slice(0, 11), "app"]);
+    expect(countGeneral(doceConCab, generalIds)).toBe(12);
+    expect(getSubjectStatus(ele1, doceConCab, ctx(doceConCab, "app"))).toBe("go");
+    expect(getSubjectStatus(ele1, doceConCab, ctx(doceConCab, null))).toBe("go");
+
+    // 11 aprobadas (aunque incluyan la cabecera) → bloqueada
+    const onceConCab = new Set([...generalIds.filter((id) => id !== "app").slice(0, 10), "app"]);
+    expect(countGeneral(onceConCab, generalIds)).toBe(11);
+    expect(getSubjectStatus(ele1, onceConCab, ctx(onceConCab, "app"))).toBe("no");
+  });
+
   it("expone la clave de persistencia por carrera", () => {
     expect(getProgressKey("cp")).toBe("sociales-map:cp");
     expect(getProgressKey("sociologia")).toBe("sociales-map:sociologia");
+  });
+
+  it("migra la clave vieja de CP a sociales-map:cp sin perder avance", () => {
+    const store = {};
+    globalThis.localStorage = {
+      getItem: (k) => (k in store ? store[k] : null),
+      setItem: (k, v) => {
+        store[k] = String(v);
+      },
+      removeItem: (k) => {
+        delete store[k];
+      },
+    };
+    store["cp8558_progreso_v1"] = JSON.stringify({ a: ["eco", "tps1"], o: "app" });
+
+    const migrated = migrateProgress("cp", "cp8558_progreso_v1");
+
+    expect(migrated).toEqual({ a: ["eco", "tps1"], o: "app" });
+    expect(JSON.parse(store["sociales-map:cp"])).toEqual({ a: ["eco", "tps1"], o: "app" });
+    delete globalThis.localStorage;
+  });
+});
+
+// ---- Relaciones del Trabajo (data real de rt.js) ----
+const RT_ALL = [...RT_MATERIAS, ...RT_OPTATIVAS, ...RT_IDIOMA];
+const RT_GENERAL_IDS = RT_MATERIAS.map((m) => m.id);
+const rtCtx = (okSet) => ({
+  generalIds: RT_GENERAL_IDS,
+  orientation: null,
+  orientationIds: [],
+  remainingCount: RT_ALL.filter((m) => !okSet.has(m.id)).length,
+});
+const rtGoCods = (okSet) =>
+  RT_MATERIAS.filter((m) => getSubjectStatus(m, okSet, rtCtx(okSet)) === "go")
+    .map((m) => m.cod)
+    .sort((a, b) => a - b);
+const rtFirst = (n) => new Set(RT_GENERAL_IDS.slice(0, n));
+
+describe("Relaciones del Trabajo", () => {
+  it("(a) al arrancar, las disponibles son exactamente 901, 903, 905, 908, 925, 927", () => {
+    expect(rtGoCods(new Set())).toEqual([901, 903, 905, 908, 925, 927]);
+  });
+
+  it("(b) 919 (T. y Comp. Organizacional) se bloquea hasta aprobar 911+912+913+918", () => {
+    const tco = RT_MATERIAS.find((m) => m.cod === 919);
+    const reqIds = ["adp3", "comp", "psit", "sot"]; // 911, 912, 913, 918
+    expect(getSubjectStatus(tco, new Set(), rtCtx(new Set()))).toBe("no");
+    const casi = new Set(reqIds.slice(0, 3));
+    expect(getSubjectStatus(tco, casi, rtCtx(casi))).toBe("no");
+    const completo = new Set(reqIds);
+    expect(getSubjectStatus(tco, completo, rtCtx(completo))).toBe("go");
+  });
+
+  it("(c) 921 (Seguridad Social) pide 914 y 916", () => {
+    const dss = RT_MATERIAS.find((m) => m.cod === 921);
+    const soloUno = new Set(["dapt"]); // 914
+    expect(getSubjectStatus(dss, soloUno, rtCtx(soloUno))).toBe("no");
+    const ambos = new Set(["dapt", "rt"]); // 914, 916
+    expect(getSubjectStatus(dss, ambos, rtCtx(ambos))).toBe("go");
+  });
+
+  it("(d) las optativas se abren recién con 17 aprobadas del ciclo obligatorio", () => {
+    const opt = RT_OPTATIVAS[0];
+    const con16 = rtFirst(16);
+    expect(getSubjectStatus(opt, con16, rtCtx(con16))).toBe("no");
+    const con17 = rtFirst(17);
+    expect(getSubjectStatus(opt, con17, rtCtx(con17))).toBe("go");
+  });
+
+  it("(e) Inglés I se habilita con 6 materias de la carrera aprobadas", () => {
+    const ing1 = RT_IDIOMA.find((m) => m.cod === 991);
+    const con5 = rtFirst(5);
+    expect(getSubjectStatus(ing1, con5, rtCtx(con5))).toBe("no");
+    const con6 = rtFirst(6);
+    expect(getSubjectStatus(ing1, con6, rtCtx(con6))).toBe("go");
+  });
+
+  it("(f) el hito de título intermedio se enciende con 14 obligatorias aprobadas", () => {
+    expect(HITO_INTERMEDIO.min).toBe(14);
+    expect(countGeneral(rtFirst(13), RT_GENERAL_IDS) >= HITO_INTERMEDIO.min).toBe(false);
+    expect(countGeneral(rtFirst(14), RT_GENERAL_IDS) >= HITO_INTERMEDIO.min).toBe(true);
   });
 });
