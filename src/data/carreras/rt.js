@@ -17,7 +17,7 @@
    estudiantil (La UES/CECSo/Generación RT) coincide en estructura
    y reglas especiales; se usó solo como cross-check, no como fuente.
 
-   —— TABLA OFICIAL (fuente 1, literal) para auditar ——————————————
+   ── TABLA OFICIAL (fuente 1, literal) para auditar ──────────────
    Cód | Materia                                    | Requiere
    901 | Principios de la Sociología del Trabajo    | CBC Completo
    925 | Economía Política I                        | CBC Completo
@@ -30,28 +30,28 @@
    907 | Economía del Trabajo                       | 926
    908 | Historia Social Contemporánea              | CBC Completo
    909 | Derecho del Trabajo II                     | 905
-   910 | Administración de Personal II              | 904 · 928
+   910 | Administración de Personal II              | 904 – 928
    911 | Administración de Personal III             | 910
    912 | Computación y Sistemas de Información      | 928
    913 | Psicología del Trabajo                     | 903
    914 | Derecho Administ. y Procesal del Trabajo   | 909
-   915 | Estructura Económica y Social Argentina    | 908 · 926 · 928
-   916 | Relaciones del Trabajo                     | 907 · 914
-   917 | Condiciones y Medio Ambiente del Trabajo   | 907 · 909
+   915 | Estructura Económica y Social Argentina    | 908 – 926 – 928
+   916 | Relaciones del Trabajo                     | 907 – 914
+   917 | Condiciones y Medio Ambiente del Trabajo   | 907 – 909
    918 | Sociología del Trabajo                     | 901
-   919 | Teoría y Comportamiento Organizacional     | 911 · 912 · 913 · 918
-   920 | Metodología de la Invest. y la Evaluación  | 901 · 913 · 928
-   921 | Derecho de la Seguridad Social             | 914 · 916
+   919 | Teoría y Comportamiento Organizacional     | 911 – 912 – 913 – 918
+   920 | Metodología de la Invest. y la Evaluación  | 901 – 913 – 928
+   921 | Derecho de la Seguridad Social             | 914 – 916
    922 | Historia del Movimiento Obrero Nac. e Int. | 915
        | Materia Optativa I y II                    | Cuando falten 7 materias
    991 | Inglés I                                   | 6 materias de la carrera
    992 | Inglés II                                  | 991
    993 | Inglés III                                 | 992
-   ————————————————————————————————————————————————————————————
+   ────────────────────────────────────────────────────────────────
 
    NOTAS DE INTERPRETACIÓN (auditar):
    a) Optativas: la FAQ oficial precisa "no adeudar más de siete (7)
-      materias del Ciclo Obligatorio" — con 24 obligatorias, se
+      materias del Ciclo Obligatorio" → con 24 obligatorias, se
       habilitan con 17 aprobadas. El flyer dice lo mismo ("falten 7
       del ciclo obligatorio"). Codificado como min: 17.
    b) Idioma: en RT es inglés específicamente (tabla oficial 991-993

@@ -56,7 +56,7 @@ export const RT_UI = {
     },
     {
       at: 14,
-      tick: "14 · intermedio",
+      tick: "14 · interm.",
       pillOn: "Analista habilitado",
       pillOff: (n) => `Intermedio: faltan ${14 - n}`,
     },
