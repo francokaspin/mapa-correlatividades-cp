@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { CARRERAS } from "./data/carreras/index.js";
 import MapaCorrelatividades from "./MapaCorrelatividades.jsx";
+import { CSS } from "./styles.js";
 
 const DEFAULT_TITLE = "Mapa de Correlatividades · UBA Sociales";
 
@@ -37,6 +38,7 @@ function setPageMeta(carrera) {
 function Landing() {
   return (
     <div className="pagina landing">
+      <style>{CSS}</style>
       <header className="cabecera">
         <p className="eyebrow">Mapa de Correlatividades · UBA Sociales</p>
         <h1>Elegí tu carrera</h1>
@@ -67,6 +69,7 @@ function Landing() {
 function EnPreparacion({ carrera }) {
   return (
     <div className="pagina landing">
+      <style>{CSS}</style>
       <header className="cabecera">
         <p className="eyebrow">{carrera.nombre} · UBA Sociales</p>
         <h1>En preparación</h1>
