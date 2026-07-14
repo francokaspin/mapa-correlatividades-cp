@@ -38,7 +38,7 @@ export const CARRERAS = [
   {
     id: "ts",
     nombre: "Trabajo Social",
-    color: "#D42E86",
+    color: "#E03B8F",
     estado: "activa",
     data: {
       plan: { general: TS_MATERIAS, idioma: TS_IDIOMA },
