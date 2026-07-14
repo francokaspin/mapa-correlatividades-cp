@@ -7,6 +7,7 @@ import {
   IDIOMA as RT_IDIOMA,
   HITO_INTERMEDIO,
 } from "./carreras/rt.js";
+import { MATERIAS as TS_MATERIAS, IDIOMA as TS_IDIOMA } from "./carreras/ts.js";
 
 const contextForPlan = (plan, okSet, orientation) => ({
   generalIds: plan.general.map((m) => m.id),
@@ -197,5 +198,86 @@ describe("Relaciones del Trabajo", () => {
     expect(HITO_INTERMEDIO.min).toBe(14);
     expect(countGeneral(rtFirst(13), RT_GENERAL_IDS) >= HITO_INTERMEDIO.min).toBe(false);
     expect(countGeneral(rtFirst(14), RT_GENERAL_IDS) >= HITO_INTERMEDIO.min).toBe(true);
+  });
+});
+
+// ---- Trabajo Social (data real de ts.js) ----
+const TS_ALL = [...TS_MATERIAS, ...TS_IDIOMA];
+const TS_GENERAL_IDS = TS_MATERIAS.map((m) => m.id);
+const tsCtx = (okSet) => ({
+  generalIds: TS_GENERAL_IDS,
+  orientation: null,
+  orientationIds: [],
+  remainingCount: TS_ALL.filter((m) => !okSet.has(m.id)).length,
+});
+const tsStatus = (subject, okSet) => getSubjectStatus(subject, okSet, tsCtx(okSet));
+const tsGoNros = (okSet) =>
+  TS_MATERIAS.filter((m) => tsStatus(m, okSet) === "go")
+    .map((m) => m.nro)
+    .sort((a, b) => a - b);
+const tsFirst = (n) => new Set(TS_GENERAL_IDS.slice(0, n));
+const tsByNro = (nro) => TS_MATERIAS.find((m) => m.nro === nro);
+
+describe("Trabajo Social", () => {
+  it("(a) al arrancar, las disponibles son exactamente 1,2,3,4,5,6,9,10,15", () => {
+    expect(tsGoNros(new Set())).toEqual([1, 2, 3, 4, 5, 6, 9, 10, 15]);
+  });
+
+  it("(b) Taller IV (31) se bloquea hasta Taller III + Política Social + Dim. Instrumental + TS Familias", () => {
+    const tal4 = tsByNro(31);
+    const reqIds = ["tal3", "polsoc", "dimins", "familias"]; // 23, 16, 21, 25
+    expect(tsStatus(tal4, new Set())).toBe("no");
+    const casi = new Set(reqIds.slice(0, 3));
+    expect(tsStatus(tal4, casi)).toBe("no");
+    const completo = new Set(reqIds);
+    expect(tsStatus(tal4, completo)).toBe("go");
+  });
+
+  it("(c) Seminario de Investigación Final (29) pide Antropología I + Sociodemográficos + Taller III", () => {
+    const semfin = tsByNro(29);
+    const reqIds = ["antro1", "sociodem", "tal3"]; // 15, 20, 23
+    expect(tsStatus(semfin, new Set(reqIds.slice(0, 2)))).toBe("no");
+    expect(tsStatus(semfin, new Set(reqIds))).toBe("go");
+  });
+
+  it("(d) las 2 electivas (27, 33) y la optativa (30) piden Problemas Soc. Arg. + Taller II", () => {
+    const cards = [27, 33, 30].map(tsByNro);
+    const soloUno = new Set(["psa"]); // 12
+    cards.forEach((c) => expect(tsStatus(c, soloUno)).toBe("no"));
+    const ambos = new Set(["psa", "tal2"]); // 12, 14
+    cards.forEach((c) => expect(tsStatus(c, ambos)).toBe("go"));
+  });
+
+  it("(e) Idioma I se habilita con 6 materias aprobadas", () => {
+    const idi1 = TS_IDIOMA.find((m) => m.id === "idi1");
+    expect(tsStatus(idi1, tsFirst(5))).toBe("no");
+    expect(tsStatus(idi1, tsFirst(6))).toBe("go");
+  });
+
+  it("(f) el grafo de correlativas no tiene ciclos y todas las req existen", () => {
+    const ids = new Set(TS_GENERAL_IDS);
+    const byId = Object.fromEntries(TS_MATERIAS.map((m) => [m.id, m]));
+    // integridad referencial: toda req por id apunta a una materia existente
+    TS_MATERIAS.forEach((m) =>
+      (m.req || [])
+        .filter((r) => typeof r === "string")
+        .forEach((r) => expect(ids.has(r)).toBe(true))
+    );
+    // detección de ciclos por DFS
+    const estado = {};
+    let ciclo = false;
+    const visitar = (id) => {
+      if (estado[id] === 1) {
+        ciclo = true;
+        return;
+      }
+      if (estado[id] === 2) return;
+      estado[id] = 1;
+      (byId[id]?.req || []).filter((r) => typeof r === "string").forEach(visitar);
+      estado[id] = 2;
+    };
+    TS_MATERIAS.forEach((m) => visitar(m.id));
+    expect(ciclo).toBe(false);
+    expect(TS_MATERIAS).toHaveLength(33);
   });
 });

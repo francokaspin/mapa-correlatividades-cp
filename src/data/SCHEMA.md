@@ -41,6 +41,11 @@ Cada materia admite estas propiedades:
 - `countdown`: habilita cuando faltan N materias para el título.
 - `orientado`: verdadero para las materias del ciclo orientado.
 
+Campos de **solo presentación** (el evaluador los ignora; sirven para el mapa):
+
+- `cod` / `nro`: código o número oficial de la materia en el plan (p. ej. RT usa `cod`, TS usa `nro`).
+- `anual`: `true` marca las materias anuales (los talleres de Trabajo Social); la tarjeta muestra un badge "Anual".
+
 ## Requisitos
 
 Los requisitos pueden expresarse como:
@@ -91,6 +96,19 @@ El archivo `src/data/carreras/cp.js` contiene la definición de la carrera de Ci
 - El ciclo general es un arreglo de materias.
 - El bloque `idioma` usa `min: 6` en Nivel I.
 - El bloque `orientado` usa requisitos genéricos con `min: 12` e inclusión de cabeceras de orientación.
+
+## Presentación (`ui.js`)
+
+Cada carrera tiene un objeto de UI (en `src/data/carreras/ui.js`) que separa el
+*cómo se muestra* del *qué pide cada materia*:
+
+- `milestones`: hitos con umbral numérico. Cada uno (`{ at, tick, pillOn, pillOff }`)
+  dibuja una marca en la barra de progreso y una pill que se enciende al llegar a `at`.
+- `infoPills`: pills **informativas sin gate ni tick** (`{ label }`). No dependen de un
+  umbral; se usan para hitos sin condición numérica (p. ej. la Tesina/TIF de Trabajo Social).
+- `blocks`: bloques del plan a renderizar (`planKey`, `title`, `subtitle`).
+- `footer`: nota al pie, **configurable por carrera** (p. ej. TS aclara que la correlativa
+  se pide CURSADA/regularizada, no aprobada con final).
 
 ## Agregar una carrera nueva
 

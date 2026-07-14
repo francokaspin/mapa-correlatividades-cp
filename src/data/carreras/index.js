@@ -1,6 +1,7 @@
 import cpData from "./cp.js";
 import { MATERIAS as RT_MATERIAS, OPTATIVAS as RT_OPTATIVAS, IDIOMA as RT_IDIOMA } from "./rt.js";
-import { CP_UI, RT_UI } from "./ui.js";
+import { MATERIAS as TS_MATERIAS, IDIOMA as TS_IDIOMA } from "./ts.js";
+import { CP_UI, RT_UI, TS_UI } from "./ui.js";
 
 export const CARRERAS = [
   {
@@ -35,10 +36,13 @@ export const CARRERAS = [
     },
   },
   {
-    id: "trabajo-social",
+    id: "ts",
     nombre: "Trabajo Social",
-    color: "#0099A8",
-    estado: "en-preparacion",
-    data: null,
+    color: "#D42E86",
+    estado: "activa",
+    data: {
+      plan: { general: TS_MATERIAS, idioma: TS_IDIOMA },
+      ui: TS_UI,
+    },
   },
 ];

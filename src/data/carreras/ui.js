@@ -87,3 +87,36 @@ export const RT_UI = {
   footer:
     "Correlativas según la tabla oficial de la carrera (Res. (CS) N° 1440/90 y Res. (CD) N° 1161/93). El título intermedio «Analista en Relaciones del Trabajo» (Res. (CS) N° 74/85) se habilita con 14 obligatorias aprobadas. Tu progreso queda guardado en este navegador.",
 };
+
+export const TS_UI = {
+  eyebrow: "Trabajo Social · UBA Sociales · Plan 5962/12",
+  countBase: "general",
+  countLabel: "de la carrera",
+  milestones: [
+    {
+      at: 6,
+      tick: "6 · idioma",
+      pillOn: "Idioma habilitado",
+      pillOff: (n) => `Idioma: faltan ${6 - n}`,
+    },
+  ],
+  // Pills informativas: sin gate ni tick en la barra (no tienen umbral
+  // numérico). La Tesina/TIF es requisito final del título pero sus
+  // condiciones están en el reglamento de TIF, no en el cuadro.
+  infoPills: [{ label: "Tesina (TIF) · requisito final" }],
+  blocks: [
+    {
+      planKey: "general",
+      title: "Materias",
+      subtitle:
+        "Las 33 materias del plan, en el orden del cuadro oficial. Los cuatro talleres son anuales. Electivas y optativa son materias comunes con sus correlativas.",
+    },
+    {
+      planKey: "idioma",
+      title: "Idioma",
+      subtitle: "Tres niveles encadenados de inglés o portugués. El Nivel I se habilita con 6 materias aprobadas.",
+    },
+  ],
+  footer:
+    "Correlativas según el cuadro oficial de la carrera (Res. (CS) N° 5962/12). En Trabajo Social alcanza con tener la correlativa CURSADA (regularizada), no aprobada con final. La Tesina de grado (TIF) es el requisito final del título; sus condiciones están en el reglamento de TIF. Tu progreso queda guardado en este navegador.",
+};

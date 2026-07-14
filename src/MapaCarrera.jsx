@@ -187,7 +187,7 @@ export default function MapaCarrera({ carrera }) {
       >
         <span className="tick" aria-hidden="true">{est === "ok" ? "✓" : ""}</span>
         <span className="cuerpo">
-          <span className="nom">{it.n}</span>
+          <span className="nom">{it.n}{it.anual && <span className="badge-anual">Anual</span>}</span>
 
           {bmin != null && est === "no" && nGen < bmin && (
             <span className="meta falta">Pide {bmin} aprobadas {ui.countLabel} · llevás {nGen}</span>
@@ -259,6 +259,9 @@ export default function MapaCarrera({ carrera }) {
               <span key={`p${m.at}`} className={`pill ${nGen >= m.at ? "on" : ""}`}>
                 {nGen >= m.at ? m.pillOn : m.pillOff(nGen)}
               </span>
+            ))}
+            {(ui.infoPills || []).map((p, i) => (
+              <span key={`info${i}`} className="pill info">{p.label}</span>
             ))}
             <button className={`reset ${confirma ? "seguro" : ""}`} onClick={reset}>
               {confirma ? "¿Seguro? Tocá de nuevo" : "Reiniciar todo"}
@@ -414,6 +417,7 @@ const CSS = `
     text-transform: uppercase; letter-spacing: .04em;
   }
   .pill.on { background: var(--negro); color: var(--accent); }
+  .pill.info { background: transparent; border-style: dashed; opacity: .82; letter-spacing: .02em; }
   .reset {
     margin-left: auto; border: 2px solid var(--negro); background: var(--crema);
     border-radius: 999px; padding: 6px 14px; font-family: var(--body);
@@ -506,6 +510,12 @@ const CSS = `
 
   .cuerpo { display: grid; gap: 3px; min-width: 0; }
   .nom { font-weight: 800; font-size: 13.5px; line-height: 1.25; }
+  .badge-anual {
+    display: inline-block; margin-left: 6px; vertical-align: 1px;
+    font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em;
+    padding: 1px 6px; border-radius: 999px; border: 1.5px solid currentColor;
+    opacity: .85;
+  }
   .meta { font-size: 11px; line-height: 1.35; font-weight: 600; }
   .meta.abre { opacity: .72; }
   .meta.pide { opacity: .78; }
