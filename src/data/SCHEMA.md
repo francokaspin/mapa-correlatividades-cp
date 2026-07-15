@@ -41,10 +41,32 @@ Cada materia admite estas propiedades:
 - `countdown`: habilita cuando faltan N materias para el título.
 - `orientado`: verdadero para las materias del ciclo orientado.
 
+- `cantidad`: la tarjeta es una **tarjeta-grupo** y representa N materias (ver abajo).
+
 Campos de **solo presentación** (el evaluador los ignora; sirven para el mapa):
 
 - `cod` / `nro`: código o número oficial de la materia en el plan (p. ej. RT usa `cod`, TS usa `nro`).
 - `anual`: `true` marca las materias anuales (los talleres de Trabajo Social); la tarjeta muestra un badge "Anual".
+- `reqAprobadas`: `true` cuando el plan pide las correlativas **aprobadas** (con final), no solo
+  cursadas. La tarjeta muestra un badge "Aprobadas"; el detalle va en el `footer`. El evaluador
+  **no** distingue cursada de aprobada (cada materia es un booleano), así que este campo es copy.
+
+## Tarjetas-grupo (`cantidad`)
+
+Un tramo optativo que se elige "N materias de un conjunto" se modela como **una tarjeta por grupo**
+con `cantidad: N`, en vez de N tarjetas sueltas. La tarjeta:
+
+- pide sus `req` **fijos** (no es un umbral: para eso está `min`);
+- muestra un badge `×N`;
+- es un solo tick, y **pesa N** en la barra de progreso y en el conteo del bloque.
+
+```js
+// Sociología: 6 Sociologías Especiales que piden HCS II + Metodología I
+{ id: "espec", n: "Sociologías Especiales", s: "Soc. Especiales",
+  cantidad: 6, req: ["hcs2", "met1"] }
+```
+
+Una tarjeta sin `cantidad` pesa 1, así que las carreras que no usan grupos no cambian.
 
 ## Requisitos
 
@@ -102,13 +124,23 @@ El archivo `src/data/carreras/cp.js` contiene la definición de la carrera de Ci
 Cada carrera tiene un objeto de UI (en `src/data/carreras/ui.js`) que separa el
 *cómo se muestra* del *qué pide cada materia*:
 
+- `countBase`: el bloque que resuelve los requisitos `{ min, of: "general" }`.
+- `countKeys`: los bloques que **suman a la barra**. Por defecto `[countBase]`. Sociología usa
+  `["general", "optativas"]` para llegar a 25 (16 obligatorias + 6 especiales + 3 teorías);
+  su idioma y sus 200 hs corren por fuera del conteo.
 - `milestones`: hitos con umbral numérico. Cada uno (`{ at, tick, pillOn, pillOff }`)
   dibuja una marca en la barra de progreso y una pill que se enciende al llegar a `at`.
-- `infoPills`: pills **informativas sin gate ni tick** (`{ label }`). No dependen de un
+  Una carrera sin umbrales (Sociología: todos los req son fijos) va con `milestones: []`.
+- `infoPills`: pills **informativas sin tick ni conteo** (`{ label }`). No dependen de un
   umbral; se usan para hitos sin condición numérica (p. ej. la Tesina/TIF de Trabajo Social).
+  Opcionalmente toman `{ req, labelOn }`: con `req` cumplido la pill se enciende y muestra
+  `labelOn` (p. ej. las 200 hs de investigación de Sociología, que piden Metodología I +
+  Sociología Sistemática). Sigue sin tick y sin sumar al conteo.
 - `blocks`: bloques del plan a renderizar (`planKey`, `title`, `subtitle`).
 - `footer`: nota al pie, **configurable por carrera** (p. ej. TS aclara que la correlativa
-  se pide CURSADA/regularizada, no aprobada con final).
+  se pide CURSADA/regularizada, no aprobada con final). Cuando el texto es data verificada,
+  conviene importarlo del archivo de la carrera en vez de repetirlo (Sociología importa su
+  `NOTA_PIE`), así no deriva.
 
 ## Agregar una carrera nueva
 

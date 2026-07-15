@@ -3,7 +3,6 @@ import {
   getProgressKey,
   migrateProgress,
   getSubjectStatus,
-  countGeneral,
 } from "./data/evaluator.js";
 
 /* ============================================================
@@ -54,6 +53,17 @@ function baseMinOf(it, countBase) {
   return null;
 }
 
+// Cuánto pesa una tarjeta en el conteo. Una tarjeta-grupo declara `cantidad`
+// (las 6 Sociologías Especiales de Sociología pesan 6); el resto pesa 1.
+function pesoDe(it) {
+  return typeof it.cantidad === "number" ? it.cantidad : 1;
+}
+
+const sumaPesos = (items, okSet) =>
+  items.reduce((acc, it) => acc + (okSet.has(it.id) ? pesoDe(it) : 0), 0);
+
+const totalPesos = (items) => items.reduce((acc, it) => acc + pesoDe(it), 0);
+
 function hasOrientationReq(it) {
   const scan = (r) =>
     !!r &&
@@ -70,8 +80,13 @@ export default function MapaCarrera({ carrera }) {
   const accent = carrera.color || "#C8D62B";
 
   const blocks = ui.blocks;
+  // `countBase` = la pila que resuelve los req { min, of: 'general' }.
   const baseArr = plan[ui.countBase] || [];
   const baseIds = baseArr.map((m) => m.id);
+  // `countKeys` = los bloques que suman a la barra. Por defecto solo countBase
+  // (CP/RT/TS); Sociología además cuenta el tramo optativo (16 + 6 + 3 = 25).
+  const countKeys = ui.countKeys || [ui.countBase];
+  const countArr = countKeys.flatMap((k) => plan[k] || []);
   const orientaciones = plan.orientaciones || [];
   const orientationIds = orientaciones.map((o) => o.id);
 
@@ -126,7 +141,7 @@ export default function MapaCarrera({ carrera }) {
   const disponibles = (okSet, oriVal) =>
     new Set(TODAS.filter((it) => statusOf(it, okSet, oriVal) === "go").map((it) => it.id));
 
-  const nGen = countGeneral(ok, baseIds);
+  const nGen = sumaPesos(countArr, ok);
 
   const toggle = (it) => {
     const est = statusOf(it, ok, ori);
@@ -183,11 +198,18 @@ export default function MapaCarrera({ carrera }) {
         className={`card ${est} ${esNueva ? "nueva" : ""} ${tiembla === it.id ? "tiembla" : ""}`}
         onClick={() => toggle(it)}
         aria-pressed={est === "ok"}
-        aria-label={`${it.n}: ${est === "ok" ? "aprobada" : est === "go" ? "disponible" : "bloqueada"}`}
+        aria-label={`${it.n}${it.cantidad ? ` (${it.cantidad} materias)` : ""}: ${
+          est === "ok" ? "aprobada" : est === "go" ? "disponible" : "bloqueada"
+        }`}
       >
         <span className="tick" aria-hidden="true">{est === "ok" ? "✓" : ""}</span>
         <span className="cuerpo">
-          <span className="nom">{it.n}{it.anual && <span className="badge-anual">Anual</span>}</span>
+          <span className="nom">
+            {it.n}
+            {it.anual && <span className="badge-anual">Anual</span>}
+            {typeof it.cantidad === "number" && <span className="badge-cupos">×{it.cantidad}</span>}
+            {it.reqAprobadas && <span className="badge-aprob">Aprobadas</span>}
+          </span>
 
           {bmin != null && est === "no" && nGen < bmin && (
             <span className="meta falta">Pide {bmin} aprobadas {ui.countLabel} · llevás {nGen}</span>
@@ -223,7 +245,7 @@ export default function MapaCarrera({ carrera }) {
     );
   }
 
-  const total = baseIds.length;
+  const total = totalPesos(countArr);
   const pct = Math.round((nGen / total) * 100);
 
   return (
@@ -260,9 +282,17 @@ export default function MapaCarrera({ carrera }) {
                 {nGen >= m.at ? m.pillOn : m.pillOff(nGen)}
               </span>
             ))}
-            {(ui.infoPills || []).map((p, i) => (
-              <span key={`info${i}`} className="pill info">{p.label}</span>
-            ))}
+            {/* Pills informativas: sin tick ni conteo. Si el hito declara `req`
+                (las 200 hs de Sociología), la pill se enciende al cumplirlo. */}
+            {(ui.infoPills || []).map((p, i) => {
+              const cumplido =
+                Array.isArray(p.req) && p.req.length > 0 && p.req.every((r) => ok.has(r));
+              return (
+                <span key={`info${i}`} className={`pill info${cumplido ? " on" : ""}`}>
+                  {cumplido && p.labelOn ? p.labelOn : p.label}
+                </span>
+              );
+            })}
             <button className={`reset ${confirma ? "seguro" : ""}`} onClick={reset}>
               {confirma ? "¿Seguro? Tocá de nuevo" : "Reiniciar todo"}
             </button>
@@ -280,7 +310,9 @@ export default function MapaCarrera({ carrera }) {
 
         {blocks.map((b) => {
           const items = plan[b.planKey] || [];
-          const hechas = items.filter((m) => ok.has(m.id)).length;
+          // Pesado: el tramo optativo de Sociología cuenta cupos (0/9), no tarjetas (0/2).
+          const hechas = sumaPesos(items, ok);
+          const totalBloque = totalPesos(items);
           return (
             <section className="bloque" key={b.planKey}>
               <div className="bloque-head">
@@ -288,7 +320,7 @@ export default function MapaCarrera({ carrera }) {
                   <h2>{b.title}</h2>
                   <p>{b.subtitle}</p>
                 </div>
-                <span className="conteo">{hechas}/{items.length}</span>
+                <span className="conteo">{hechas}/{totalBloque}</span>
               </div>
 
               {b.orientaciones && (
@@ -418,6 +450,8 @@ const CSS = `
   }
   .pill.on { background: var(--negro); color: var(--accent); }
   .pill.info { background: transparent; border-style: dashed; opacity: .82; letter-spacing: .02em; }
+  /* Hito informativo con req cumplido: se enciende, pero nunca lleva tick ni conteo. */
+  .pill.info.on { background: var(--negro); color: var(--accent); border-style: solid; opacity: 1; }
   .reset {
     margin-left: auto; border: 2px solid var(--negro); background: var(--crema);
     border-radius: 999px; padding: 6px 14px; font-family: var(--body);
@@ -510,12 +544,16 @@ const CSS = `
 
   .cuerpo { display: grid; gap: 3px; min-width: 0; }
   .nom { font-weight: 800; font-size: 13.5px; line-height: 1.25; }
-  .badge-anual {
+  .badge-anual, .badge-cupos, .badge-aprob {
     display: inline-block; margin-left: 6px; vertical-align: 1px;
     font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em;
     padding: 1px 6px; border-radius: 999px; border: 1.5px solid currentColor;
     opacity: .85;
   }
+  /* Tarjeta-grupo: cuántas materias representa (Sociologías Especiales ×6). */
+  .badge-cupos { font-family: var(--mono); letter-spacing: .02em; opacity: 1; }
+  /* Excepción [c] del plan: este grupo pide las correlativas con final aprobado. */
+  .badge-aprob { border-style: dashed; opacity: .75; }
   .meta { font-size: 11px; line-height: 1.35; font-weight: 600; }
   .meta.abre { opacity: .72; }
   .meta.pide { opacity: .78; }

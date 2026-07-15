@@ -1,7 +1,12 @@
 import cpData from "./cp.js";
 import { MATERIAS as RT_MATERIAS, OPTATIVAS as RT_OPTATIVAS, IDIOMA as RT_IDIOMA } from "./rt.js";
 import { MATERIAS as TS_MATERIAS, IDIOMA as TS_IDIOMA } from "./ts.js";
-import { CP_UI, RT_UI, TS_UI } from "./ui.js";
+import {
+  MATERIAS as SOCIO_MATERIAS,
+  OPTATIVAS as SOCIO_OPTATIVAS,
+  IDIOMA as SOCIO_IDIOMA,
+} from "./socio.js";
+import { CP_UI, RT_UI, TS_UI, SOCIO_UI } from "./ui.js";
 
 export const CARRERAS = [
   {
@@ -12,11 +17,16 @@ export const CARRERAS = [
     data: { plan: cpData.plan, ui: CP_UI, legacyKey: "cp8558_progreso_v1" },
   },
   {
-    id: "sociologia",
+    id: "socio",
     nombre: "Sociología",
-    color: "#5B6DEB",
-    estado: "en-preparacion",
-    data: null,
+    // Orquídea. El #5B6DEB del placeholder no llegaba a AA con el texto negro
+    // sobre el fondo de acento (4.32:1); este da 6.97:1.
+    color: "#C77DFF",
+    estado: "activa",
+    data: {
+      plan: { general: SOCIO_MATERIAS, optativas: SOCIO_OPTATIVAS, idioma: SOCIO_IDIOMA },
+      ui: SOCIO_UI,
+    },
   },
   {
     id: "comunicacion",

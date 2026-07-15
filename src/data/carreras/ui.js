@@ -1,6 +1,12 @@
 /* Configuración de presentación por carrera (data-driven).
    Separado de los archivos de data (correlativas) a propósito:
-   acá va SOLO cómo se muestra el plan, no qué pide cada materia. */
+   acá va SOLO cómo se muestra el plan, no qué pide cada materia.
+
+   Sociología importa dos cosas de su data en vez de repetirlas acá
+   (la nota al pie y el req del hito de 200 hs): son texto y requisitos
+   verificados contra la resolución, y duplicarlos los deja derivar. */
+
+import { NOTA_PIE as SOCIO_NOTA_PIE, HITOS as SOCIO_HITOS } from "./socio.js";
 
 export const CP_UI = {
   eyebrow: "Ciencia Política · UBA Sociales · Plan 8558/17",
@@ -119,4 +125,47 @@ export const TS_UI = {
   ],
   footer:
     "Correlativas según el cuadro oficial de la carrera (Res. (CS) N° 5962/12). En Trabajo Social alcanza con tener la correlativa CURSADA (regularizada), no aprobada con final. La Tesina de grado (TIF) es el requisito final del título; sus condiciones están en el reglamento de TIF. Tu progreso queda guardado en este navegador.",
+};
+
+// Hito de las 200 hs: el req sale de la data (met1 + ssis), no se escribe acá.
+const HORAS_INV = SOCIO_HITOS.find((h) => h.id === "horasinv");
+
+export const SOCIO_UI = {
+  eyebrow: "Sociología · UBA Sociales · Plan 2282/88",
+  countBase: "general",
+  // La barra cuenta las 16 obligatorias + los 9 cupos del tramo optativo = 25.
+  // El idioma y las 200 hs corren por fuera del conteo (así lo fija el plan).
+  countKeys: ["general", "optativas"],
+  countLabel: "de la carrera",
+  // Sociología no tiene umbrales de N materias: todos los req son fijos.
+  // Sin milestones no hay marcas en la barra.
+  milestones: [],
+  infoPills: [
+    {
+      req: HORAS_INV.req,
+      label: `${HORAS_INV.n} · pide Metodología I + Soc. Sistemática aprobadas`,
+      labelOn: `${HORAS_INV.n} · habilitadas`,
+    },
+  ],
+  blocks: [
+    {
+      planKey: "general",
+      title: "Materias obligatorias",
+      subtitle:
+        "Las 16 obligatorias, en el orden del mapa oficial de la carrera (numeración 1-16). Régimen de correlatividades Res. (CD) N° 186/2024.",
+    },
+    {
+      planKey: "optativas",
+      title: "Tramo optativo",
+      subtitle:
+        "Dos grupos con cupos: 6 Sociologías Especiales y 3 Teorías Sociológicas. No son umbrales de materias — cada grupo pide sus correlativas fijas. Marcá el grupo cuando lo tengas completo.",
+    },
+    {
+      planKey: "idioma",
+      title: "Idioma",
+      subtitle:
+        "Tres niveles encadenados de un mismo idioma a elección (francés o inglés). El Nivel I no pide materias previas: arranca con el CBC.",
+    },
+  ],
+  footer: `${SOCIO_NOTA_PIE} Tu progreso queda guardado en este navegador.`,
 };
