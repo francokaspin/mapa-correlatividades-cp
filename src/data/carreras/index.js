@@ -12,7 +12,22 @@ import {
   ORIENTACIONES as CC440_ORIENTACIONES,
   IDIOMA as CC440_IDIOMA,
 } from "./cc440.js";
-import { CP_UI, RT_UI, TS_UI, SOCIO_UI, CC440_UI } from "./ui.js";
+import {
+  COMUNICACIONAL as CC504_COMUNICACIONAL,
+  TALLERES as CC504_TALLERES,
+  CSOCIALES as CC504_CSOCIALES,
+  PROBLEMATICA as CC504_PROBLEMATICA,
+  PPP1 as CC504_PPP1,
+  CICLOS as CC504_CICLOS,
+  INTRODUCTORIAS as CC504_INTRODUCTORIAS,
+  APLICADAS as CC504_APLICADAS,
+  ESPECIFICAS as CC504_ESPECIFICAS,
+  PPP2 as CC504_PPP2,
+  SEMINARIOS as CC504_SEMINARIOS,
+  TALLER_TIF as CC504_TALLER_TIF,
+  IDIOMA as CC504_IDIOMA,
+} from "./cc504.js";
+import { CP_UI, RT_UI, TS_UI, SOCIO_UI, CC440_UI, CC504_UI } from "./ui.js";
 
 // Acento único de Ciencias de la Comunicación (los dos planes lo comparten).
 // Periwinkle: hue 231°, contraste 7.29:1 con el texto negro (>AA), y la mayor
@@ -46,9 +61,26 @@ export const CARRERAS = [
     id: "cc504",
     nombre: "Cs. de la Comunicación · Plan 504/23",
     color: COMUNICACION_ACCENT,
-    estado: "en-preparacion", // se activa en la Fase B
+    estado: "activa",
     grupo: "comunicacion",
-    data: null,
+    data: {
+      plan: {
+        comunicacional: CC504_COMUNICACIONAL,
+        talleres: CC504_TALLERES,
+        csociales: CC504_CSOCIALES,
+        problematica: CC504_PROBLEMATICA,
+        ppp1: [CC504_PPP1],
+        introductorias: CC504_INTRODUCTORIAS,
+        aplicadas: CC504_APLICADAS,
+        especificas: CC504_ESPECIFICAS,
+        ppp2: [CC504_PPP2],
+        seminarios: CC504_SEMINARIOS,
+        tallertif: CC504_TALLER_TIF,
+        idioma: CC504_IDIOMA,
+        orientaciones: CC504_CICLOS,
+      },
+      ui: CC504_UI,
+    },
   },
   {
     id: "cc440",

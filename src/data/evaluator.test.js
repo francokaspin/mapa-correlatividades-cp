@@ -8,6 +8,24 @@ import {
   IDIOMA as CC440_IDIOMA,
   TOTAL_MATERIAS as CC440_TOTAL,
 } from "./carreras/cc440.js";
+import {
+  COMUNICACIONAL as CC504_COMUNICACIONAL,
+  TALLERES as CC504_TALLERES,
+  CSOCIALES as CC504_CSOCIALES,
+  PROBLEMATICA as CC504_PROBLEMATICA,
+  PPP1 as CC504_PPP1,
+  PPP2 as CC504_PPP2,
+  INTRODUCTORIAS as CC504_INTRODUCTORIAS,
+  APLICADAS as CC504_APLICADAS,
+  ESPECIFICAS as CC504_ESPECIFICAS,
+  SEMINARIOS as CC504_SEMINARIOS,
+  TALLER_TIF as CC504_TALLER_TIF,
+  IDIOMA as CC504_IDIOMA,
+  COMUNICACIONAL_IDS,
+  TALLERES_IDS,
+  CSOCIALES_IDS,
+  CICLO_INICIAL_IDS,
+} from "./carreras/cc504.js";
 import cpData from "./carreras/cp.js";
 import {
   MATERIAS as RT_MATERIAS,
@@ -602,7 +620,7 @@ describe("Cs. de la Comunicación · Plan 440/90", () => {
     const cc440 = CARRERAS.find((c) => c.id === "cc440");
     const cc504 = CARRERAS.find((c) => c.id === "cc504");
     expect(cc440.estado).toBe("activa");
-    expect(cc504.estado).toBe("en-preparacion"); // se activa en Fase B
+    expect(cc504.estado).toBe("activa"); // activado en Fase B
     expect(cc440.grupo).toBe("comunicacion");
     expect(cc504.grupo).toBe("comunicacion");
     expect(cc440.color).toBe("#8E9CF0");
@@ -618,6 +636,140 @@ describe("Cs. de la Comunicación · Plan 440/90", () => {
     expect(grupo.href).toBe("#/comunicacion");
     expect(cc440.data.plan.general).toHaveLength(26);
     expect(cc440.data.plan.orientaciones).toHaveLength(5);
+  });
+});
+
+// ---- Ciencias de la Comunicación · Plan 504/23 (data real de cc504.js) ----
+// Plan Res. (CS) 504/2023 · correlativas por tramos y umbrales.
+const cc504Ctx = () => ({
+  generalIds: CICLO_INICIAL_IDS,
+  orientation: null,
+  orientationIds: ["cic_int", "cic_pro", "cic_inv"],
+  remainingCount: 999, // 504 no usa countdown
+});
+const s504 = (subject, okSet) => getSubjectStatus(subject, okSet, cc504Ctx());
+const peso504 = (it) => (it.requisito ? 0 : typeof it.cantidad === "number" ? it.cantidad : 1);
+const totalPesos504 = (arr) => arr.reduce((a, m) => a + peso504(m), 0);
+const introDe = (ori) => CC504_INTRODUCTORIAS.find((m) => m.ori === ori);
+const aplicDe = (ori) => CC504_APLICADAS.find((m) => m.ori === ori);
+const especDe = (ori) => CC504_ESPECIFICAS.find((m) => m.ori === ori);
+
+describe("Cs. de la Comunicación · Plan 504/23", () => {
+  it("(a) arranque: 18 disponibles (9 comunicacional + 4 talleres + 5 cs. sociales); Problemática bloqueada", () => {
+    const disponibles = [...CC504_COMUNICACIONAL, ...CC504_TALLERES, ...CC504_CSOCIALES].filter(
+      (m) => s504(m, new Set()) === "go"
+    );
+    expect(disponibles).toHaveLength(18);
+    CC504_PROBLEMATICA.forEach((m) => expect(s504(m, new Set())).toBe("no"));
+  });
+
+  it("(b) Problemática pide 7 del Ciclo Inicial incluyendo ≥1 taller", () => {
+    const sinTaller = new Set([...COMUNICACIONAL_IDS.slice(0, 5), ...CSOCIALES_IDS.slice(0, 2)]); // 7, sin taller
+    expect(sinTaller.size).toBe(7);
+    expect(s504(CC504_PROBLEMATICA[0], sinTaller)).toBe("no");
+    const conTaller = new Set([...COMUNICACIONAL_IDS.slice(0, 4), ...CSOCIALES_IDS.slice(0, 2), "tesc"]); // 7, 1 taller
+    expect(conTaller.size).toBe(7);
+    expect(s504(CC504_PROBLEMATICA[0], conTaller)).toBe("go");
+  });
+
+  it("(c) PPP I pide 2 talleres + 4 de otras áreas, con ≥2 del Área Comunicacional", () => {
+    const c1 = new Set(["tesc", "trgp", ...CSOCIALES_IDS.slice(0, 3), COMUNICACIONAL_IDS[0]]); // 2 tall + 3 cs + 1 com
+    expect(s504(CC504_PPP1, c1)).toBe("no"); // falta ≥2 comunicacional
+    const c2 = new Set(["tesc", "trgp", ...COMUNICACIONAL_IDS.slice(0, 2), ...CSOCIALES_IDS.slice(0, 2)]); // 2 tall + 2 com + 2 cs
+    expect(s504(CC504_PPP1, c2)).toBe("go");
+  });
+
+  it("(d) Introductorias piden 10 del inicial + 2 talleres + PPP I (lectura inclusiva [★a])", () => {
+    const diez = new Set([...COMUNICACIONAL_IDS.slice(0, 6), ...CSOCIALES_IDS.slice(0, 2), "tesc", "trgp"]); // 10, 2 talleres
+    expect(diez.size).toBe(10);
+    const intro = introDe("cic_int");
+    expect(s504(intro, diez)).toBe("no"); // falta PPP I
+    expect(s504(intro, new Set([...diez, "ppp1"]))).toBe("go"); // marcando PPP I → abre
+    // con 9 (una menos) + ppp1 → sigue bloqueada
+    const nueve = new Set([...COMUNICACIONAL_IDS.slice(0, 5), ...CSOCIALES_IDS.slice(0, 2), "tesc", "trgp", "ppp1"]);
+    expect(s504(intro, nueve)).toBe("no");
+  });
+
+  it("(e) Aplicadas piden 2 introductorias del ciclo; Específicas piden 3 aplicadas", () => {
+    const aplic = aplicDe("cic_int");
+    expect(s504(aplic, new Set(["edpc"]))).toBe("no"); // solo 1 introductoria
+    expect(s504(aplic, new Set(["edpc", "poc"]))).toBe("go"); // 2 introductorias
+    const espec = especDe("cic_int");
+    expect(s504(espec, new Set(["cic", "decp"]))).toBe("no"); // solo 2 aplicadas
+    expect(s504(espec, new Set(["cic", "decp", "mcpa"]))).toBe("go"); // 3 aplicadas
+  });
+
+  it("(f) Taller de TIF: 2 específicas solas → bloqueado; + grupo Seminarios ×2 → abre", () => {
+    const ttif = CC504_TALLER_TIF[0];
+    const dosEsp = new Set(["tedu", "iasc"]); // 2 específicas de Intervención
+    expect(s504(ttif, dosEsp)).toBe("no");
+    expect(s504(ttif, new Set([...dosEsp, "sem"]))).toBe("go"); // + Seminarios
+  });
+
+  it("(g) las 5 de Cs. Sociales suman SOLO 3 a la barra (tope de bloque)", () => {
+    const marcadas5 = CC504_CSOCIALES.reduce((a, m) => a + peso504(m), 0); // si se marcan las 5
+    expect(marcadas5).toBe(5);
+    expect(Math.min(marcadas5, 3)).toBe(3); // el motor suma min(aprobadas, cap)
+    const cc504 = CARRERAS.find((c) => c.id === "cc504");
+    expect(cc504.data.ui.blocks.find((b) => b.planKey === "csociales").cap).toBe(3);
+    expect(cc504.data.ui.countGroups.find((g) => g.key === "csociales").cap).toBe(3);
+  });
+
+  it("(h) la barra llega a 30 exactos; las PPP (peso 0) no la mueven", () => {
+    const cc504 = CARRERAS.find((c) => c.id === "cc504");
+    const plan = cc504.data.plan;
+    const capFor = (g) => (g.cap != null ? g.cap : totalPesos504(plan[g.key]));
+    const total = cc504.data.ui.countGroups.reduce((a, g) => a + capFor(g), 0);
+    expect(total).toBe(30);
+    // PPP I y II están fuera del conteo y pesan 0
+    expect(cc504.data.ui.countGroups.some((g) => g.key === "ppp1" || g.key === "ppp2")).toBe(false);
+    expect(peso504(CC504_PPP1)).toBe(0);
+    expect(peso504(CC504_PPP2)).toBe(0);
+    // seminarios pesa 2, taller TIF pesa 1
+    expect(totalPesos504(CC504_SEMINARIOS)).toBe(2);
+    expect(totalPesos504(CC504_TALLER_TIF)).toBe(1);
+  });
+
+  it("(i) Idioma Nivel I con 6 del Ciclo Inicial; II y III encadenados", () => {
+    const [idi1, idi2, idi3] = CC504_IDIOMA;
+    expect(s504(idi1, new Set(CICLO_INICIAL_IDS.slice(0, 5)))).toBe("no");
+    expect(s504(idi1, new Set(CICLO_INICIAL_IDS.slice(0, 6)))).toBe("go");
+    expect(s504(idi2, new Set(CICLO_INICIAL_IDS.slice(0, 6)))).toBe("no");
+    expect(s504(idi2, new Set([...CICLO_INICIAL_IDS.slice(0, 6), "idi1"]))).toBe("go");
+    expect(s504(idi3, new Set([...CICLO_INICIAL_IDS.slice(0, 6), "idi1", "idi2"]))).toBe("go");
+  });
+
+  it("(j) cc504 activo bajo el grupo Comunicación; TIF como pill que se enciende sola", () => {
+    const cc504 = CARRERAS.find((c) => c.id === "cc504");
+    expect(cc504.estado).toBe("activa");
+    expect(cc504.color).toBe("#8E9CF0");
+    expect(cc504.grupo).toBe("comunicacion");
+    expect(getProgressKey("cc504")).toBe("sociales-map:cc504");
+    const plan = cc504.data.plan;
+    expect(plan.comunicacional).toHaveLength(9);
+    expect(plan.talleres).toHaveLength(4);
+    expect(plan.csociales).toHaveLength(5);
+    expect(plan.problematica).toHaveLength(3);
+    expect(plan.introductorias).toHaveLength(13); // 5 + 4 + 4
+    expect(plan.aplicadas).toHaveLength(20); // 5 + 8 + 7
+    expect(plan.especificas).toHaveLength(10); // 3 + 4 + 3
+    expect(plan.orientaciones).toHaveLength(3);
+    const tif = cc504.data.ui.infoPills.find((p) => p.whenComplete);
+    expect(tif).toBeDefined();
+    expect(tif.req).toEqual(["ppp1", "ppp2", "idi3"]);
+    // la landing sigue en cinco tarjetas (Comunicación es una)
+    expect(landingEntries()).toHaveLength(5);
+    // integridad: toda req por string apunta a un id existente del plan
+    const allIds = new Set(
+      [
+        ...plan.comunicacional, ...plan.talleres, ...plan.csociales, ...plan.problematica,
+        ...plan.ppp1, ...plan.introductorias, ...plan.aplicadas, ...plan.especificas,
+        ...plan.ppp2, ...plan.seminarios, ...plan.tallertif, ...plan.idioma,
+      ].map((m) => m.id)
+    );
+    [...plan.idioma].forEach((m) =>
+      (m.req || []).filter((r) => typeof r === "string").forEach((r) => expect(allIds.has(r)).toBe(true))
+    );
   });
 });
 
