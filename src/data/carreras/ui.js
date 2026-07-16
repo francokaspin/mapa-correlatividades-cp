@@ -259,8 +259,9 @@ export const CC504_UI = {
     {
       whenComplete: true,
       req: CC504_TIF.req,
+      // La condición HABILITA a cursar el TIF (no es recibirse).
       label: `${CC504_TIF.n} · última instancia`,
-      labelOn: `${CC504_TIF.n} · ¡carrera completa!`,
+      labelOn: "Ya podés hacer el TIF",
     },
   ],
   blocks: [

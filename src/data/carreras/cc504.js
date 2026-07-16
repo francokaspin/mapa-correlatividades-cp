@@ -117,7 +117,8 @@
            → { min:10, of: CICLO_INICIAL_IDS, includes:[{min:2, of:TALLERES_IDS}, "ppp1"] }
          { introductoriasMismoCiclo: 2 } → { min:2, of: INTRO_IDS[ciclo] }
          { aplicadas: 3 } → { min:3, of: APLICADAS_IDS[ciclo] }
-         { especificasOSeminarios: 3 } → { min:3, of:[...específicas, "sem"] }
+         { especificasOSeminarios: 3 } → { min:3, of:[...específicas, "sem", "sem"] }
+           (la tarjeta-grupo "sem" son 2 materias → cuenta como 2 en el umbral)
        Los topes por bloque (Cs. Sociales 3/5, Problemática 2/3,
        Introductorias 3, Aplicadas 4, Específicas 2) van en el UI
        como `cap`; el motor suma min(aprobadas, cap) a la barra.
@@ -181,7 +182,11 @@ const GATE_ORIENTADO = { min: 10, of: CICLO_INICIAL_IDS, includes: [{ min: 2, of
 const reqAplicadas = (ciclo) => ({ min: 2, of: INTRO_IDS[ciclo] });
 const reqEspecificas = (ciclo) => ({ min: 3, of: APLICADAS_IDS[ciclo] });
 const REQ_SEMINARIOS = { min: 3, of: ALL_APLICADAS_IDS };
-const REQ_TALLER_TIF = { min: 3, of: [...ALL_ESPECIFICAS_IDS, "sem"] };
+// "≥3 aprobadas entre Específicas y/o Seminarios": el régimen cuenta MATERIAS
+// aprobadas y la tarjeta-grupo "sem" representa DOS (los dos seminarios). Va dos
+// veces en `of` para que, marcada, aporte 2 al umbral (1 específica + Seminarios
+// = 3 → abre; Seminarios solos = 2 → no alcanza).
+const REQ_TALLER_TIF = { min: 3, of: [...ALL_ESPECIFICAS_IDS, "sem", "sem"] };
 
 // ================= CICLO INICIAL (18 a aprobar) =================
 

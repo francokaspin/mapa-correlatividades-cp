@@ -24,6 +24,7 @@ import {
   COMUNICACIONAL_IDS,
   TALLERES_IDS,
   CSOCIALES_IDS,
+  PROBLEMATICA_IDS,
   CICLO_INICIAL_IDS,
 } from "./carreras/cc504.js";
 import cpData from "./carreras/cp.js";
@@ -699,11 +700,16 @@ describe("Cs. de la Comunicación · Plan 504/23", () => {
     expect(s504(espec, new Set(["cic", "decp", "mcpa"]))).toBe("go"); // 3 aplicadas
   });
 
-  it("(f) Taller de TIF: 2 específicas solas → bloqueado; + grupo Seminarios ×2 → abre", () => {
+  it("(f) Taller de TIF: el grupo Seminarios cuenta como 2 materias hacia el ≥3", () => {
     const ttif = CC504_TALLER_TIF[0];
-    const dosEsp = new Set(["tedu", "iasc"]); // 2 específicas de Intervención
-    expect(s504(ttif, dosEsp)).toBe("no");
-    expect(s504(ttif, new Set([...dosEsp, "sem"]))).toBe("go"); // + Seminarios
+    // 2 específicas solas = 2 < 3 → bloqueado
+    expect(s504(ttif, new Set(["tedu", "iasc"]))).toBe("no");
+    // Seminarios solos (grupo = 2 materias) = 2 < 3 → bloqueado
+    expect(s504(ttif, new Set(["sem"]))).toBe("no");
+    // DISCRIMINANTE: 1 específica + grupo Seminarios (1 + 2) = 3 → abre
+    expect(s504(ttif, new Set(["tedu", "sem"]))).toBe("go");
+    // 2 específicas + grupo Seminarios (2 + 2) = 4 → abre
+    expect(s504(ttif, new Set(["tedu", "iasc", "sem"]))).toBe("go");
   });
 
   it("(g) las 5 de Cs. Sociales suman SOLO 3 a la barra (tope de bloque)", () => {
@@ -769,6 +775,22 @@ describe("Cs. de la Comunicación · Plan 504/23", () => {
     );
     [...plan.idioma].forEach((m) =>
       (m.req || []).filter((r) => typeof r === "string").forEach((r) => expect(allIds.has(r)).toBe(true))
+    );
+  });
+
+  it("(k) PPP I: las '4 de otras áreas' excluyen talleres → 2 talleres + 2 comunicacionales sigue bloqueada", () => {
+    // 2 talleres cumplen el ≥2 de talleres, pero las 'otras áreas' son solo 2
+    // comunicacionales (< 4): PPP I sigue bloqueada.
+    const soloComun = new Set(["tesc", "trgp", COMUNICACIONAL_IDS[0], COMUNICACIONAL_IDS[1]]);
+    expect(s504(CC504_PPP1, soloComun)).toBe("no");
+    // sumando 2 de otras áreas (cs. sociales) → 4 otras áreas ≥ 2 comunic. → abre
+    const conCuatro = new Set([...soloComun, CSOCIALES_IDS[0], CSOCIALES_IDS[1]]);
+    expect(s504(CC504_PPP1, conCuatro)).toBe("go");
+    // el `of` del umbral de 4 excluye los talleres e incluye comunicacional + cs. sociales + problemática
+    const of4 = CC504_PPP1.req.find((r) => r.min === 4).of;
+    TALLERES_IDS.forEach((t) => expect(of4).not.toContain(t));
+    [...COMUNICACIONAL_IDS, ...CSOCIALES_IDS, ...PROBLEMATICA_IDS].forEach((id) =>
+      expect(of4).toContain(id)
     );
   });
 });

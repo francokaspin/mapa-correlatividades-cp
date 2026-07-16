@@ -43,8 +43,8 @@ function Landing() {
         <p className="eyebrow">Mapa de Correlatividades · UBA Sociales</p>
         <h1>Elegí tu carrera</h1>
         <p className="intro">
-          Seleccioná una de las cinco carreras de Ciencias Sociales. Comunicación tiene dos planes
-          vigentes: entrás por una sola tarjeta y elegís el tuyo adentro.
+          Seleccioná una de las cinco carreras de Ciencias Sociales. Las cinco están disponibles;
+          Comunicación entra por una sola tarjeta y adentro elegís entre sus dos planes vigentes.
         </p>
       </header>
 
