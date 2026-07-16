@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { CARRERAS } from "./data/carreras/index.js";
+import { CARRERAS, GRUPOS, landingEntries } from "./data/carreras/index.js";
 import MapaCarrera from "./MapaCarrera.jsx";
 import { CSS } from "./styles.js";
 
@@ -20,17 +20,17 @@ function ensureMeta(name, content) {
   element.setAttribute("content", content);
 }
 
-function setPageMeta(carrera) {
-  const title = carrera
-    ? `Mapa de Correlatividades · ${carrera.nombre} · UBA Sociales`
+function setPageMeta(entidad) {
+  const title = entidad
+    ? `Mapa de Correlatividades · ${entidad.nombre} · UBA Sociales`
     : DEFAULT_TITLE;
 
   document.title = title;
   ensureMeta("og:title", title);
   ensureMeta(
     "og:description",
-    carrera
-      ? `Mapa de correlativas para ${carrera.nombre} en la Facultad de Ciencias Sociales (UBA).`
+    entidad
+      ? `Mapa de correlativas para ${entidad.nombre} en la Facultad de Ciencias Sociales (UBA).`
       : "Selector de carreras para el Mapa de Correlatividades · UBA Sociales."
   );
 }
@@ -43,24 +43,70 @@ function Landing() {
         <p className="eyebrow">Mapa de Correlatividades · UBA Sociales</p>
         <h1>Elegí tu carrera</h1>
         <p className="intro">
-          Seleccioná una de las cinco carreras de Ciencias Sociales. Las carreras en preparación
-          están visibles, pero todavía no tienen datos cargados.
+          Seleccioná una de las cinco carreras de Ciencias Sociales. Comunicación tiene dos planes
+          vigentes: entrás por una sola tarjeta y elegís el tuyo adentro.
         </p>
       </header>
 
       <main className="panel selector-panel">
         <div className="carrera-grid">
-          {CARRERAS.map((carrera) => (
+          {landingEntries().map((e) => (
             <a
-              key={carrera.id}
-              className={`carrera-card ${carrera.estado === "en-preparacion" ? "inactivo" : "activa"}`}
-              href={`#/${carrera.id}`}
+              key={e.id}
+              className={`carrera-card ${
+                e.tipo === "grupo" ? "activa grupo" : e.estado === "en-preparacion" ? "inactivo" : "activa"
+              }`}
+              href={e.href}
             >
-              <strong>{carrera.nombre}</strong>
-              <span className="estado">{carrera.estado === "activa" ? "Activa" : "En preparación"}</span>
+              <strong>{e.nombre}</strong>
+              <span className="estado">
+                {e.tipo === "grupo"
+                  ? "Dos planes vigentes"
+                  : e.estado === "activa"
+                  ? "Activa"
+                  : "En preparación"}
+              </span>
             </a>
           ))}
         </div>
+      </main>
+    </div>
+  );
+}
+
+// Paso intermedio de un grupo (Comunicación): guía de transición + los planes.
+function GrupoSelector({ grupo }) {
+  return (
+    <div className="pagina landing">
+      <style>{CSS}</style>
+      <header className="cabecera">
+        <p className="eyebrow">{grupo.eyebrow}</p>
+        <h1>{grupo.titulo}</h1>
+        <p className="intro">{grupo.intro}</p>
+      </header>
+
+      <main className="panel selector-panel">
+        <div className="carrera-grid">
+          {grupo.opciones.map((op) => {
+            const c = CARRERAS.find((x) => x.id === op.id);
+            const activa = c.estado === "activa";
+            return (
+              <a
+                key={op.id}
+                className={`carrera-card plan-card ${activa ? "activa" : "inactivo"}`}
+                href={`#/${op.id}`}
+              >
+                <strong>
+                  {c.nombre}
+                  {op.marca && <span className="marca-extinguir">{op.marca}</span>}
+                </strong>
+                <span className="quien">{op.quien}</span>
+                <span className="estado">{activa ? "Abrir el mapa →" : "En preparación"}</span>
+              </a>
+            );
+          })}
+        </div>
+        <a className="reset" href="#/">← Volver a las carreras</a>
       </main>
     </div>
   );
@@ -100,12 +146,19 @@ export default function App() {
   }, []);
 
   const carrera = CARRERAS.find((item) => item.id === route);
+  const grupo = GRUPOS[route];
 
   useEffect(() => {
-    setPageMeta(carrera);
-    document.documentElement.style.setProperty("--accent", carrera?.color || "#C8D62B");
-  }, [carrera]);
+    setPageMeta(carrera || grupo || null);
+    document.documentElement.style.setProperty(
+      "--accent",
+      carrera?.color || grupo?.color || "#C8D62B"
+    );
+  }, [carrera, grupo]);
 
+  if (grupo) {
+    return <GrupoSelector grupo={grupo} />;
+  }
   if (!carrera) {
     return <Landing />;
   }

@@ -1,6 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { getSubjectStatus, countGeneral, getProgressKey, migrateProgress } from "./evaluator.js";
-import { CARRERAS } from "./carreras/index.js";
+import { CARRERAS, landingEntries } from "./carreras/index.js";
+import {
+  TRONCO as CC440_TRONCO,
+  ORIENTADO as CC440_ORIENTADO,
+  ORIENTACIONES as CC440_ORIENTACIONES,
+  IDIOMA as CC440_IDIOMA,
+  TOTAL_MATERIAS as CC440_TOTAL,
+} from "./carreras/cc440.js";
 import cpData from "./carreras/cp.js";
 import {
   MATERIAS as RT_MATERIAS,
@@ -467,6 +474,150 @@ describe("Sociología", () => {
     expect(socio.data.ui.footer).toContain("APROBADAS");
     // ya no existe el placeholder "sociologia"
     expect(CARRERAS.some((c) => c.id === "sociologia")).toBe(false);
+  });
+});
+
+// ---- Ciencias de la Comunicación · Plan 440/90 (data real de cc440.js) ----
+// Plan Res. (CS) 440/90 · correlativas Res. 5396/09 · a extinguir.
+const CC440_ALL = [...CC440_TRONCO, ...CC440_ORIENTADO, ...CC440_IDIOMA];
+const CC440_TRONCO_IDS = CC440_TRONCO.map((m) => m.id);
+const cc440Ctx = (okSet) => ({
+  generalIds: CC440_TRONCO_IDS,
+  orientation: null,
+  orientationIds: CC440_ORIENTACIONES.map((o) => o.id),
+  remainingCount: CC440_ALL.filter((m) => !okSet.has(m.id)).length,
+});
+const cc440Status = (subject, okSet) => getSubjectStatus(subject, okSet, cc440Ctx(okSet));
+const cc440GoCods = (okSet) =>
+  CC440_TRONCO.filter((m) => cc440Status(m, okSet) === "go")
+    .map((m) => m.cod)
+    .sort((a, b) => a - b);
+const cc440ByCod = (cod) => CC440_TRONCO.find((m) => m.cod === cod);
+const cc440Mat = (id) => CC440_ORIENTADO.find((m) => m.id === id);
+// 14 del tronco SIN ninguno de los talleres 124/125/126 (el "incluyendo" del gate).
+const TRONCO_SIN_TALLERES = CC440_TRONCO_IDS.filter((id) => !["tcc", "tcpu", "tcpe"].includes(id));
+const CATORCE_SIN_TALLER = new Set(TRONCO_SIN_TALLERES.slice(0, 14));
+// 14 del tronco CON un taller (124) y con 107, pero SIN la 119 (pypc).
+const CATORCE_CON_TALLER = new Set([...TRONCO_SIN_TALLERES.slice(0, 13), "tcc"]);
+
+describe("Cs. de la Comunicación · Plan 440/90", () => {
+  it("(a) al arrancar, las disponibles son exactamente las 11 con requisito CBC", () => {
+    expect(cc440GoCods(new Set())).toEqual([101, 102, 103, 104, 105, 106, 107, 108, 111, 113, 116]);
+  });
+
+  it("(b) 110 (TyPC II) pide 101 + 106", () => {
+    const tpc2 = cc440ByCod(110);
+    expect(tpc2.req).toEqual(["tpc1", "antr"]);
+    expect(cc440Status(tpc2, new Set(["tpc1"]))).toBe("no");
+    expect(cc440Status(tpc2, new Set(["tpc1", "antr"]))).toBe("go");
+  });
+
+  it("(c) 118 (TyPC III) pide 101+102+104+106+110+112", () => {
+    const tpc3 = cc440ByCod(118);
+    expect(tpc3.req).toEqual(["tpc1", "sem1", "meto", "antr", "tpc2", "sem2"]);
+    const casi = new Set(["tpc1", "sem1", "meto", "antr", "tpc2"]); // falta sem2 (112)
+    expect(cc440Status(tpc3, casi)).toBe("no");
+    expect(cc440Status(tpc3, new Set(["tpc1", "sem1", "meto", "antr", "tpc2", "sem2"]))).toBe("go");
+  });
+
+  it("(d) 123 (Taller de expresión III) pide 107+108+116", () => {
+    const te3 = cc440ByCod(123);
+    expect(te3.req).toEqual(["te1", "trad", "te2"]);
+    expect(cc440Status(te3, new Set(["te1", "trad"]))).toBe("no");
+    expect(cc440Status(te3, new Set(["te1", "trad", "te2"]))).toBe("go");
+  });
+
+  it("(e) las orientaciones piden 14 incluyendo 107 y uno de {124,125,126}", () => {
+    const mats = ["per_tsp", "cpe_cyed", "opp_com", "ccom_prom"].map(cc440Mat);
+    // 14 aprobadas sin ningún taller comunitario/publicitario/periodístico → el "incluyendo" muerde
+    expect(countGeneral(CATORCE_SIN_TALLER, CC440_TRONCO_IDS)).toBe(14);
+    mats.forEach((m) => expect(cc440Status(m, CATORCE_SIN_TALLER)).toBe("no"));
+    // 14 con un taller (124) → abren
+    expect(countGeneral(CATORCE_CON_TALLER, CC440_TRONCO_IDS)).toBe(14);
+    mats.forEach((m) => expect(cc440Status(m, CATORCE_CON_TALLER)).toBe("go"));
+    // 13 (una menos) aunque incluya el taller → siguen bloqueadas
+    const trece = new Set([...TRONCO_SIN_TALLERES.slice(0, 12), "tcc"]);
+    expect(countGeneral(trece, CC440_TRONCO_IDS)).toBe(13);
+    expect(cc440Status(mats[0], trece)).toBe("no");
+  });
+
+  it("(f) con el gate común pero sin la 119, Políticas y Planificación sigue bloqueada; las otras 4 abren", () => {
+    const pyp = CC440_ORIENTADO.filter((m) => m.ori === "pyp");
+    // el gate común está cumplido (CATORCE_CON_TALLER no incluye pypc/119)
+    expect(CATORCE_CON_TALLER.has("pypc")).toBe(false);
+    pyp.forEach((m) => expect(cc440Status(m, CATORCE_CON_TALLER)).toBe("no"));
+    // las otras cuatro abren con ese mismo set
+    ["per_tsp", "cpe_cyed", "opp_com", "ccom_prom"].forEach((id) =>
+      expect(cc440Status(cc440Mat(id), CATORCE_CON_TALLER)).toBe("go")
+    );
+    // sumando la 119 → Políticas y Planificación abre
+    const con119 = new Set([...CATORCE_CON_TALLER, "pypc"]);
+    pyp.forEach((m) => expect(cc440Status(m, con119)).toBe("go"));
+  });
+
+  it("(g) Idioma Nivel I se abre con 6 del tronco; II y III encadenados", () => {
+    const [idi1, idi2, idi3] = CC440_IDIOMA;
+    expect(cc440Status(idi1, new Set(CC440_TRONCO_IDS.slice(0, 5)))).toBe("no");
+    expect(cc440Status(idi1, new Set(CC440_TRONCO_IDS.slice(0, 6)))).toBe("go");
+    expect(cc440Status(idi2, new Set(CC440_TRONCO_IDS.slice(0, 6)))).toBe("no");
+    expect(cc440Status(idi2, new Set([...CC440_TRONCO_IDS.slice(0, 6), "idi1"]))).toBe("go");
+    expect(cc440Status(idi3, new Set([...CC440_TRONCO_IDS.slice(0, 6), "idi1"]))).toBe("no");
+    expect(cc440Status(idi3, new Set([...CC440_TRONCO_IDS.slice(0, 6), "idi1", "idi2"]))).toBe("go");
+  });
+
+  it("(h) el grafo del tronco no tiene ciclos y todas las req existen", () => {
+    const ids = new Set(CC440_TRONCO_IDS);
+    const byId = Object.fromEntries(CC440_TRONCO.map((m) => [m.id, m]));
+    CC440_TRONCO.forEach((m) =>
+      (m.req || []).filter((r) => typeof r === "string").forEach((r) => expect(ids.has(r)).toBe(true))
+    );
+    const estado = {};
+    let ciclo = false;
+    const visitar = (id) => {
+      if (estado[id] === 1) {
+        ciclo = true;
+        return;
+      }
+      if (estado[id] === 2) return;
+      estado[id] = 1;
+      (byId[id]?.req || []).filter((r) => typeof r === "string").forEach(visitar);
+      estado[id] = 2;
+    };
+    CC440_TRONCO.forEach((m) => visitar(m.id));
+    expect(ciclo).toBe(false);
+    expect(CC440_TRONCO).toHaveLength(26);
+  });
+
+  it("(i) barra 32 = 26 tronco + 6 de una orientación; cada orientación tiene 6", () => {
+    expect(CC440_TOTAL).toBe(32);
+    expect(CC440_ORIENTADO).toHaveLength(30);
+    CC440_ORIENTACIONES.forEach((o) =>
+      expect(CC440_ORIENTADO.filter((m) => m.ori === o.id)).toHaveLength(6)
+    );
+    // las materias de orientación no tienen flechas string entre sí (gate por umbral)
+    expect(CC440_ORIENTADO.every((m) => m.req.every((r) => typeof r === "object"))).toBe(true);
+  });
+
+  it("(j) el registro agrupa los dos planes bajo Comunicación (5 tarjetas en la landing)", () => {
+    const cc440 = CARRERAS.find((c) => c.id === "cc440");
+    const cc504 = CARRERAS.find((c) => c.id === "cc504");
+    expect(cc440.estado).toBe("activa");
+    expect(cc504.estado).toBe("en-preparacion"); // se activa en Fase B
+    expect(cc440.grupo).toBe("comunicacion");
+    expect(cc504.grupo).toBe("comunicacion");
+    expect(cc440.color).toBe("#8E9CF0");
+    expect(cc504.color).toBe("#8E9CF0");
+    expect(getProgressKey("cc440")).toBe("sociales-map:cc440");
+    expect(getProgressKey("cc504")).toBe("sociales-map:cc504");
+    // ya no existe el placeholder viejo
+    expect(CARRERAS.some((c) => c.id === "comunicacion")).toBe(false);
+    // landing: cinco tarjetas, una es el grupo Comunicación → #/comunicacion
+    const cards = landingEntries();
+    expect(cards).toHaveLength(5);
+    const grupo = cards.find((e) => e.tipo === "grupo");
+    expect(grupo.href).toBe("#/comunicacion");
+    expect(cc440.data.plan.general).toHaveLength(26);
+    expect(cc440.data.plan.orientaciones).toHaveLength(5);
   });
 });
 

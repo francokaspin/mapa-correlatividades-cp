@@ -7,6 +7,7 @@
    verificados contra la resolución, y duplicarlos los deja derivar. */
 
 import { NOTA_PIE as SOCIO_NOTA_PIE, HITOS as SOCIO_HITOS } from "./socio.js";
+import { NOTA_PIE as CC440_NOTA_PIE, TESINA as CC440_TESINA } from "./cc440.js";
 
 export const CP_UI = {
   eyebrow: "Ciencia Política · UBA Sociales · Plan 8558/17",
@@ -168,4 +169,52 @@ export const SOCIO_UI = {
     },
   ],
   footer: `${SOCIO_NOTA_PIE} Tu progreso queda guardado en este navegador.`,
+};
+
+export const CC440_UI = {
+  eyebrow: "Ciencias de la Comunicación · UBA Sociales · Plan 440/90 · a extinguir",
+  // La base que resuelve los { min, of: "general" } es el tronco (26).
+  countBase: "general",
+  // La barra suma el tronco (26) + la orientación elegida (6) = 32. El motor
+  // cuenta solo la orientación activa de `orientado` (ver MapaCarrera).
+  countKeys: ["general", "orientado"],
+  countLabel: "de la carrera",
+  milestones: [
+    {
+      at: 6,
+      tick: "6 · idioma",
+      pillOn: "Idioma habilitado",
+      pillOff: (n) => `Idioma: faltan ${6 - n}`,
+    },
+    {
+      at: 14,
+      tick: "14 · orientación",
+      pillOn: "Orientaciones habilitadas",
+      pillOff: (n) => `Orientación: faltan ${14 - n}`,
+    },
+  ],
+  // Tesina: hito sin umbral numérico → pill informativa (sin tick ni conteo).
+  infoPills: [{ label: `${CC440_TESINA.n} · en el taller de la orientación` }],
+  blocks: [
+    {
+      planKey: "general",
+      title: "Tronco común",
+      subtitle:
+        "Las 26 materias del tronco, en el orden de la tabla oficial (101→126). Régimen de correlatividades Res. Nº 5396/09.",
+    },
+    {
+      planKey: "orientado",
+      title: "Orientación",
+      subtitle:
+        "Elegí una de las cinco. Sus 6 materias se abren con 14 aprobadas incluyendo Taller de expresión I (107) y uno de los talleres de comunicación (124/125/126). Políticas y Planificación pide además la 119 [★].",
+      orientaciones: true,
+    },
+    {
+      planKey: "idioma",
+      title: "Idioma",
+      subtitle:
+        "Tres niveles de un mismo idioma (inglés, francés o italiano). El Nivel I se habilita con 6 materias del tronco aprobadas.",
+    },
+  ],
+  footer: `${CC440_NOTA_PIE} El ingreso a cada orientación exige 14 aprobadas del tronco incluyendo Taller de expresión I y uno de los talleres 124/125/126; Políticas y Planificación exige ADEMÁS Políticas y planificación de la comunicación (119) [★]. La Tesina se realiza en el ámbito del Taller de la orientación. Tu progreso queda guardado en este navegador.`,
 };

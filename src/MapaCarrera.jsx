@@ -87,6 +87,15 @@ export default function MapaCarrera({ carrera }) {
   // (CP/RT/TS); Sociología además cuenta el tramo optativo (16 + 6 + 3 = 25).
   const countKeys = ui.countKeys || [ui.countBase];
   const countArr = countKeys.flatMap((k) => plan[k] || []);
+  // Materias con `ori` (plan 440): a la barra suma SOLO la orientación elegida.
+  // Ninguna otra carrera usa `ori`, así que countOri queda vacío y no hay efecto.
+  const countPlain = countArr.filter((it) => !it.ori);
+  const countOri = countArr.filter((it) => it.ori);
+  const oriSizes = {};
+  countOri.forEach((it) => { oriSizes[it.ori] = (oriSizes[it.ori] || 0) + pesoDe(it); });
+  // Peso fijo que aporta la orientación al título (todas las orientaciones son
+  // del mismo tamaño): mantiene el total de la barra estable elijas la que elijas.
+  const orientacionTotal = Object.keys(oriSizes).length ? Math.max(...Object.values(oriSizes)) : 0;
   const orientaciones = plan.orientaciones || [];
   const orientationIds = orientaciones.map((o) => o.id);
 
@@ -141,7 +150,9 @@ export default function MapaCarrera({ carrera }) {
   const disponibles = (okSet, oriVal) =>
     new Set(TODAS.filter((it) => statusOf(it, okSet, oriVal) === "go").map((it) => it.id));
 
-  const nGen = sumaPesos(countArr, ok);
+  // Barra: materias "planas" + solo las de la orientación activa (patrón 440).
+  const nGen =
+    sumaPesos(countPlain, ok) + sumaPesos(countOri.filter((it) => it.ori === ori), ok);
 
   const toggle = (it) => {
     const est = statusOf(it, ok, ori);
@@ -229,6 +240,8 @@ export default function MapaCarrera({ carrera }) {
           {est !== "no" && abre.length > 0 && (
             <span className="meta abre">Abre: {abre.join(" · ")}</span>
           )}
+          {/* Comentario del archivo (cupos "Optativa o seminario" del 440). */}
+          {it.nota && <span className="meta nota">{it.nota}</span>}
         </span>
         {est === "ok" && <span className="sello" aria-hidden="true">APROBADA</span>}
         {esNueva && est === "go" && <span className="flash" aria-hidden="true">¡SE ABRIÓ!</span>}
@@ -245,7 +258,7 @@ export default function MapaCarrera({ carrera }) {
     );
   }
 
-  const total = totalPesos(countArr);
+  const total = totalPesos(countPlain) + orientacionTotal;
   const pct = Math.round((nGen / total) * 100);
 
   return (
@@ -309,10 +322,14 @@ export default function MapaCarrera({ carrera }) {
         </div>
 
         {blocks.map((b) => {
-          const items = plan[b.planKey] || [];
+          const rawItems = plan[b.planKey] || [];
+          // Bloque con materias `ori` (440): mostrá y contá solo la orientación
+          // elegida. Sin `ori` (CP/RT/TS/socio) se muestran todas, como siempre.
+          const oriBlock = rawItems.some((it) => it.ori);
+          const items = oriBlock ? rawItems.filter((it) => it.ori === ori) : rawItems;
           // Pesado: el tramo optativo de Sociología cuenta cupos (0/9), no tarjetas (0/2).
           const hechas = sumaPesos(items, ok);
-          const totalBloque = totalPesos(items);
+          const totalBloque = oriBlock ? orientacionTotal : totalPesos(items);
           return (
             <section className="bloque" key={b.planKey}>
               <div className="bloque-head">
@@ -326,17 +343,28 @@ export default function MapaCarrera({ carrera }) {
               {b.orientaciones && (
                 <div className="orientaciones">
                   <span className="ori-label">Tu orientación:</span>
-                  {orientaciones.map((o) => (
-                    <button
-                      key={o.id}
-                      className={`ori ${ori === o.id ? "activa" : ""}`}
-                      onClick={() => elegirOri(o.id)}
-                    >
-                      {o.label}
-                      <em>{ok.has(o.id) ? " · cabecera ✓" : ` · cabecera: ${byId[o.id].s}`}</em>
-                    </button>
-                  ))}
+                  {orientaciones.map((o) => {
+                    const cab = byId[o.id]; // el 440 no tiene cabecera-materia
+                    return (
+                      <button
+                        key={o.id}
+                        className={`ori ${ori === o.id ? "activa" : ""}`}
+                        onClick={() => elegirOri(o.id)}
+                      >
+                        {o.label}
+                        {cab ? (
+                          <em>{ok.has(o.id) ? " · cabecera ✓" : ` · cabecera: ${cab.s}`}</em>
+                        ) : o.nota ? (
+                          <em> · {o.nota}</em>
+                        ) : null}
+                      </button>
+                    );
+                  })}
                 </div>
+              )}
+
+              {oriBlock && !ori && (
+                <p className="ori-vacio">Elegí una orientación para ver sus materias.</p>
               )}
 
               <div className="grilla">
@@ -558,6 +586,10 @@ const CSS = `
   .meta.abre { opacity: .72; }
   .meta.pide { opacity: .78; }
   .meta.falta { color: #FF9C8D; font-weight: 700; }
+  /* Comentario de los cupos "Optativa o seminario" (plan 440). */
+  .meta.nota { opacity: .72; font-weight: 600; }
+  /* Aviso cuando todavía no se eligió orientación (plan 440). */
+  .ori-vacio { font-size: 12px; opacity: .6; font-style: italic; margin: 2px 0 12px; }
 
   .sello {
     position: absolute; top: -8px; right: 8px;
