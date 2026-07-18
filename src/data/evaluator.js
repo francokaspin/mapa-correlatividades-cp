@@ -23,19 +23,64 @@ export function migrateProgress(carreraId, oldKey = "cp8558_progreso_v1") {
   return progress;
 }
 
-function parseProgress(raw) {
+// Parsea el progreso guardado a la forma canónica { a, o, n }.
+// MIGRACIÓN ADITIVA: los formatos viejos (array suelto, { a, o } sin notas,
+// y la legacyKey de CP) se leen sin perder nada; `n` arranca en {} cuando no
+// existía. Nunca descarta `a` ni `o`.
+export function parseProgress(raw) {
   try {
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) {
-      return { a: parsed, o: null };
+      return { a: parsed, o: null, n: {} };
     }
     if (parsed && typeof parsed === "object") {
-      return { a: Array.isArray(parsed.a) ? parsed.a : [], o: parsed.o ?? null };
+      return {
+        a: Array.isArray(parsed.a) ? parsed.a : [],
+        o: parsed.o ?? null,
+        n: parsed.n && typeof parsed.n === "object" ? parsed.n : {},
+      };
     }
   } catch (e) {
     return null;
   }
   return null;
+}
+
+// Junta todas las notas cargadas en un solo array de números. Una entrada de
+// `n` es un número (materia común) o un array (tarjeta-grupo: una nota por
+// cupo, con huecos null en los cupos sin cargar). Solo cuentan los números:
+// un grupo aprobado con 2 de 6 notas aporta 2, igual que una materia común
+// sin nota aporta 0. Cero magia.
+export function collectNotas(n) {
+  const vals = [];
+  for (const v of Object.values(n || {})) {
+    if (typeof v === "number" && Number.isFinite(v)) {
+      vals.push(v);
+    } else if (Array.isArray(v)) {
+      for (const x of v) {
+        if (typeof x === "number" && Number.isFinite(x)) vals.push(x);
+      }
+    }
+  }
+  return vals;
+}
+
+// Media simple de las notas cargadas. Devuelve null si no hay ninguna (para
+// que el promedio sea invisible en estado vacío).
+export function averageOf(n) {
+  const vals = collectNotas(n);
+  if (!vals.length) return null;
+  return vals.reduce((acc, v) => acc + v, 0) / vals.length;
+}
+
+// Valida y normaliza una nota tipeada: número 4–10 con hasta 2 decimales.
+// Fuera de rango, vacío o basura → null (no cuenta / borra la nota).
+export function normalizeNota(raw) {
+  if (raw === "" || raw == null) return null;
+  const v = Number(raw);
+  if (!Number.isFinite(v)) return null;
+  if (v < 4 || v > 10) return null;
+  return Math.round(v * 100) / 100;
 }
 
 export function countGeneral(okSet, generalIds) {

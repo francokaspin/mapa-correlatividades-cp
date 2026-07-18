@@ -3,6 +3,9 @@ import {
   getProgressKey,
   migrateProgress,
   getSubjectStatus,
+  parseProgress,
+  averageOf,
+  normalizeNota,
 } from "./data/evaluator.js";
 
 /* ============================================================
@@ -107,6 +110,9 @@ export default function MapaCarrera({ carrera }) {
 
   const [ok, setOk] = useState(() => new Set());
   const [ori, setOri] = useState(null);
+  // Notas cargadas: { [id]: nota } para materias comunes, { [id]: (nota|null)[] }
+  // para tarjetas-grupo (una por cupo). Ver evaluator.collectNotas/averageOf.
+  const [notas, setNotas] = useState(() => ({}));
   const [listo, setListo] = useState(false);
   const [nuevas, setNuevas] = useState(() => new Set());
   const [tiembla, setTiembla] = useState(null);
@@ -118,10 +124,11 @@ export default function MapaCarrera({ carrera }) {
     try {
       const saved = carrera.data.legacyKey
         ? migrateProgress(carrera.id, carrera.data.legacyKey)
-        : parseSaved(localStorage.getItem(KEY));
+        : parseProgress(localStorage.getItem(KEY));
       if (saved) {
         setOk(new Set(saved.a || []));
         setOri(saved.o || null);
+        setNotas(saved.n && typeof saved.n === "object" ? saved.n : {});
       }
     } catch (e) {
       /* sin avance guardado todavía */
@@ -133,9 +140,12 @@ export default function MapaCarrera({ carrera }) {
     };
   }, [carrera.id]);
 
-  const persistir = (s, o) => {
+  const persistir = (s, o, n) => {
     try {
-      localStorage.setItem(KEY, JSON.stringify({ a: [...s], o: o ?? null }));
+      localStorage.setItem(
+        KEY,
+        JSON.stringify({ a: [...s], o: o ?? null, n: n ?? notas }),
+      );
     } catch (e) {}
   };
 
@@ -182,12 +192,20 @@ export default function MapaCarrera({ carrera }) {
       return;
     }
     const next = new Set(ok);
-    next.has(it.id) ? next.delete(it.id) : next.add(it.id);
+    const desmarca = next.has(it.id);
+    desmarca ? next.delete(it.id) : next.add(it.id);
+    // Regla: desmarcar la materia descarta su nota (todas las del grupo).
+    let nextN = notas;
+    if (desmarca && it.id in notas) {
+      nextN = { ...notas };
+      delete nextN[it.id];
+      setNotas(nextN);
+    }
     const antes = disponibles(ok, ori);
     const despues = disponibles(next, ori);
     const recien = new Set([...despues].filter((x) => !antes.has(x)));
     setOk(next);
-    persistir(next, ori);
+    persistir(next, ori, nextN);
     if (recien.size) {
       setNuevas(recien);
       clearTimeout(tNuevas.current);
@@ -198,7 +216,26 @@ export default function MapaCarrera({ carrera }) {
   const elegirOri = (id) => {
     const nueva = ori === id ? null : id;
     setOri(nueva);
-    persistir(ok, nueva);
+    persistir(ok, nueva, notas);
+  };
+
+  // Carga/edita/borra una nota. `it` es la tarjeta; `index` el cupo dentro de
+  // una tarjeta-grupo (0 para materias comunes). `valor` ya viene normalizado
+  // (número 4–10 o null). Regla: borrar la nota la saca del promedio.
+  const setNota = (it, index, valor) => {
+    const esGrupo = typeof it.cantidad === "number" && it.cantidad > 1;
+    const nextN = { ...notas };
+    if (esGrupo) {
+      const arr = Array.isArray(notas[it.id]) ? [...notas[it.id]] : [];
+      arr[index] = valor;
+      if (arr.every((x) => x == null)) delete nextN[it.id];
+      else nextN[it.id] = arr;
+    } else {
+      if (valor == null) delete nextN[it.id];
+      else nextN[it.id] = valor;
+    }
+    setNotas(nextN);
+    persistir(ok, ori, nextN);
   };
 
   const reset = () => {
@@ -208,9 +245,11 @@ export default function MapaCarrera({ carrera }) {
       return;
     }
     const vacio = new Set();
+    const sinNotas = {};
     setOk(vacio);
     setOri(null);
-    persistir(vacio, null);
+    setNotas(sinNotas);
+    persistir(vacio, null, sinNotas);
     setConfirma(false);
     setNuevas(new Set());
   };
@@ -223,7 +262,10 @@ export default function MapaCarrera({ carrera }) {
     const esNueva = nuevas.has(it.id);
     const bmin = baseMinOf(it, ui.countBase);
     const hasOri = hasOrientationReq(it);
-    return (
+    // Input de nota: solo en aprobadas, y no en los requisitos peso-0 (PPP).
+    // El idioma sí lleva nota. Invisible en cualquier otro estado.
+    const llevaNota = est === "ok" && !it.requisito;
+    const boton = (
       <button
         className={`card ${est} ${esNueva ? "nueva" : ""} ${tiembla === it.id ? "tiembla" : ""}`}
         onClick={() => toggle(it)}
@@ -270,6 +312,40 @@ export default function MapaCarrera({ carrera }) {
         {esNueva && est === "go" && <span className="flash" aria-hidden="true">¡SE ABRIÓ!</span>}
       </button>
     );
+
+    // Estado vacío = sin aprobadas → siempre devuelve el botón bare, idéntico a
+    // hoy (así el oráculo da 0 px). El input solo aparece envuelto en aprobadas.
+    if (!llevaNota) return boton;
+
+    const cupos = typeof it.cantidad === "number" && it.cantidad > 1 ? it.cantidad : 1;
+    const valorDe = (i) => {
+      const v = notas[it.id];
+      if (cupos > 1) return Array.isArray(v) && v[i] != null ? v[i] : "";
+      return typeof v === "number" ? v : "";
+    };
+    return (
+      <div className="card-slot">
+        {boton}
+        <div className="notas">
+          <span className="notas-lbl">{cupos > 1 ? `Notas · ${cupos} materias` : "Nota"}</span>
+          {Array.from({ length: cupos }, (_, i) => (
+            <input
+              key={i}
+              className="nota-input"
+              type="number"
+              min="4"
+              max="10"
+              step="0.01"
+              inputMode="decimal"
+              placeholder="—"
+              defaultValue={valorDe(i)}
+              aria-label={cupos > 1 ? `Nota ${i + 1} de ${it.n}` : `Nota de ${it.n}`}
+              onChange={(e) => setNota(it, i, normalizeNota(e.target.value))}
+            />
+          ))}
+        </div>
+      </div>
+    );
   };
 
   if (!listo) {
@@ -282,6 +358,7 @@ export default function MapaCarrera({ carrera }) {
   }
 
   const pct = Math.round((nGen / total) * 100);
+  const avg = averageOf(notas);
 
   return (
     <div className="pagina" style={{ "--accent": accent }}>
@@ -295,7 +372,20 @@ export default function MapaCarrera({ carrera }) {
           <div className="contador">
             <span className="num">{nGen}</span>
             <span className="de">/{total} {ui.countLabel}</span>
+            {avg != null && (
+              <span className="promedio" aria-label={`Promedio ${avg.toFixed(2)}`}>
+                <span className="prom-num">{avg.toFixed(2)}</span>
+                <span className="prom-lbl">promedio</span>
+              </span>
+            )}
           </div>
+          {avg != null && (
+            <p className="prom-aclara">
+              Promedio simple de las notas que cargaste; el oficial puede diferir
+              (aplazos, equivalencias). Solo cuentan las materias con nota — un
+              grupo con 2 de 6 notas aporta 2, igual que una materia común.
+            </p>
+          )}
 
           <div className="progreso" role="img" aria-label={`${nGen} de ${total} materias aprobadas`}>
             <div className="barra">
@@ -430,18 +520,6 @@ export default function MapaCarrera({ carrera }) {
   );
 }
 
-function parseSaved(raw) {
-  if (!raw) return null;
-  try {
-    const p = JSON.parse(raw);
-    if (Array.isArray(p)) return { a: p, o: null };
-    if (p && typeof p === "object") return { a: p.a || [], o: p.o ?? null };
-  } catch (e) {
-    return null;
-  }
-  return null;
-}
-
 const CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;600;800&display=swap');
 
@@ -483,9 +561,19 @@ const CSS = `
     line-height: .92; letter-spacing: .01em; font-weight: 400;
   }
   .tablero { margin-top: 16px; display: grid; gap: 12px; }
-  .contador { display: flex; align-items: baseline; gap: 8px; }
+  .contador { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
   .contador .num { font-family: var(--disp); font-size: clamp(38px, 5vw, 52px); line-height: 1; }
   .contador .de { font-weight: 800; text-transform: uppercase; letter-spacing: .08em; font-size: 12px; }
+
+  /* Promedio: junto al contador, solo cuando hay ≥1 nota cargada. */
+  .promedio {
+    display: inline-flex; align-items: baseline; gap: 7px;
+    margin-left: 6px; padding-left: 16px;
+    border-left: 2px solid rgba(18,18,16,.35);
+  }
+  .promedio .prom-num { font-family: var(--disp); font-size: clamp(30px, 4vw, 42px); line-height: 1; }
+  .promedio .prom-lbl { font-weight: 800; text-transform: uppercase; letter-spacing: .08em; font-size: 12px; }
+  .prom-aclara { font-size: 11.5px; font-weight: 600; opacity: .72; max-width: 640px; line-height: 1.4; margin-top: -2px; }
 
   .progreso { max-width: 680px; }
   .barra {
@@ -621,6 +709,32 @@ const CSS = `
   .meta.nota { opacity: .72; font-weight: 600; }
   /* Aviso cuando todavía no se eligió orientación (plan 440). */
   .ori-vacio { font-size: 12px; opacity: .6; font-style: italic; margin: 2px 0 12px; }
+
+  /* ---------- Nota de la tarjeta (solo en aprobadas) ---------- */
+  .card-slot { display: flex; flex-direction: column; }
+  .notas {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 7px;
+    margin-top: -4px; padding: 9px 12px 10px;
+    background: rgba(18,18,16,.14);
+    border: 2px solid var(--negro); border-top: none;
+    border-radius: 0 0 12px 12px;
+  }
+  .notas-lbl {
+    font-size: 10px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: .07em; color: #0c1c0e; opacity: .8;
+  }
+  .nota-input {
+    width: 52px; padding: 4px 6px; font-family: var(--body);
+    font-size: 13px; font-weight: 800; text-align: center;
+    color: #0c1c0e; background: var(--crema);
+    border: 2px solid var(--negro); border-radius: 7px;
+    -moz-appearance: textfield;
+  }
+  .nota-input::-webkit-outer-spin-button,
+  .nota-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .nota-input::placeholder { color: #0c1c0e; opacity: .35; font-weight: 700; }
+  .nota-input:focus-visible { outline: 3px solid var(--negro); outline-offset: 1px; }
+  .nota-input:not(:placeholder-shown):invalid { border-color: var(--no); background: #f7d9d3; }
 
   .sello {
     position: absolute; top: -8px; right: 8px;
