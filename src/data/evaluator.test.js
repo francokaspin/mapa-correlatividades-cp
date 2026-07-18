@@ -8,6 +8,7 @@ import {
   averageOf,
   collectNotas,
   normalizeNota,
+  formatAR,
 } from "./evaluator.js";
 import { CARRERAS, landingEntries } from "./carreras/index.js";
 import {
@@ -261,6 +262,27 @@ describe("notas y promedio", () => {
     expect(normalizeNota("")).toBe(null); // borrar → sale del promedio
     expect(normalizeNota("abc")).toBe(null);
     expect(normalizeNota(null)).toBe(null);
+  });
+
+  it("normalizeNota: acepta la coma es-AR igual que el punto", () => {
+    // El público es-AR usa coma; el teclado mobile la ofrece.
+    expect(normalizeNota("7,5")).toBe(7.5);
+    expect(normalizeNota("7.5")).toBe(7.5);
+    expect(normalizeNota("8,25")).toBe(8.25);
+    expect(normalizeNota("10,0")).toBe(10);
+    expect(normalizeNota("3,9")).toBe(null); // < 4, también con coma
+    expect(normalizeNota(",")).toBe(null);
+    expect(normalizeNota(".")).toBe(null);
+    expect(normalizeNota(" 8,5 ")).toBe(8.5); // tolera espacios del autofill
+  });
+
+  it("formatAR: coma decimal, enteros sin decimales (solo presentación)", () => {
+    expect(formatAR(8)).toBe("8");
+    expect(formatAR(7.5)).toBe("7,5");
+    expect(formatAR(8.25)).toBe("8,25");
+    expect(formatAR(10)).toBe("10");
+    expect(formatAR(null)).toBe("");
+    expect(formatAR(NaN)).toBe("");
   });
 });
 

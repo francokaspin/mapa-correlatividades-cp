@@ -6,7 +6,13 @@ import {
   parseProgress,
   averageOf,
   normalizeNota,
+  formatAR,
 } from "./data/evaluator.js";
+
+// Gate de tipeo del input de nota (permisivo, NO valida rango): hasta 2 dígitos
+// enteros y hasta 2 decimales tras coma o punto. El vacío entra. El rango [4,10]
+// se valida recién en el blur (ver onBlur). Ver normalizeNota / formatAR.
+const NOTA_TIPEO = /^\d{0,2}([.,]\d{0,2})?$/;
 
 /* ============================================================
    MAPA DE CORRELATIVIDADES · componente genérico (data-driven)
@@ -326,29 +332,45 @@ export default function MapaCarrera({ carrera }) {
     const cupos = typeof it.cantidad === "number" && it.cantidad > 1 ? it.cantidad : 1;
     const valorDe = (i) => {
       const v = notas[it.id];
-      if (cupos > 1) return Array.isArray(v) && v[i] != null ? v[i] : "";
-      return typeof v === "number" ? v : "";
+      if (cupos > 1) return Array.isArray(v) && typeof v[i] === "number" ? v[i] : null;
+      return typeof v === "number" ? v : null;
     };
     return (
       <div className="card-slot" key={it.id}>
         {boton}
         <div className="notas">
           <span className="notas-lbl">{cupos > 1 ? `Notas · ${cupos} materias` : "Nota"}</span>
-          {Array.from({ length: cupos }, (_, i) => (
-            <input
-              key={i}
-              className="nota-input"
-              type="number"
-              min="4"
-              max="10"
-              step="0.01"
-              inputMode="decimal"
-              placeholder="—"
-              defaultValue={valorDe(i)}
-              aria-label={cupos > 1 ? `Nota ${i + 1} de ${it.n}` : `Nota de ${it.n}`}
-              onChange={(e) => setNota(it, i, normalizeNota(e.target.value))}
-            />
-          ))}
+          {Array.from({ length: cupos }, (_, i) => {
+            const txt = formatAR(valorDe(i));
+            return (
+              <input
+                key={i}
+                className="nota-input"
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
+                placeholder="—"
+                defaultValue={txt}
+                data-prev={txt}
+                aria-label={cupos > 1 ? `Nota ${i + 1} de ${it.n}` : `Nota de ${it.n}`}
+                onChange={(e) => {
+                  // Gate de tipeo permisivo: aceptar o revertir a lo último válido.
+                  const v = e.currentTarget.value;
+                  if (NOTA_TIPEO.test(v)) e.currentTarget.dataset.prev = v;
+                  else e.currentTarget.value = e.currentTarget.dataset.prev ?? "";
+                }}
+                onBlur={(e) => {
+                  // Commit: coma→punto y parseo. Válido en [4,10] → guarda; si no,
+                  // limpia y no guarda (no clampear: un 3 no se convierte en 4).
+                  const num = normalizeNota(e.currentTarget.value);
+                  const out = num == null ? "" : formatAR(num);
+                  e.currentTarget.value = out;
+                  e.currentTarget.dataset.prev = out;
+                  setNota(it, i, num);
+                }}
+              />
+            );
+          })}
         </div>
       </div>
     );
@@ -365,6 +387,9 @@ export default function MapaCarrera({ carrera }) {
 
   const pct = Math.round((nGen / total) * 100);
   const avg = averageOf(notas);
+  // Promedio con 2 decimales, salvo entero exacto; display es-AR (coma).
+  const avgTxt =
+    avg == null ? null : (Number.isInteger(avg) ? String(avg) : avg.toFixed(2)).replace(".", ",");
 
   return (
     <div className="pagina" style={{ "--accent": accent }}>
@@ -378,9 +403,9 @@ export default function MapaCarrera({ carrera }) {
           <div className="contador">
             <span className="num">{nGen}</span>
             <span className="de">/{total} {ui.countLabel}</span>
-            {avg != null && (
-              <span className="promedio" aria-label={`Promedio ${avg.toFixed(2)}`}>
-                <span className="prom-num">{avg.toFixed(2)}</span>
+            {avgTxt != null && (
+              <span className="promedio" aria-label={`Promedio ${avgTxt}`}>
+                <span className="prom-num">{avgTxt}</span>
                 <span className="prom-lbl">promedio</span>
               </span>
             )}
