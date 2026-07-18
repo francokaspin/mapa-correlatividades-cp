@@ -1,5 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { getSubjectStatus, countGeneral, getProgressKey, migrateProgress } from "./evaluator.js";
+import {
+  getSubjectStatus,
+  countGeneral,
+  getProgressKey,
+  migrateProgress,
+  parseProgress,
+  averageOf,
+  collectNotas,
+  normalizeNota,
+} from "./evaluator.js";
 import { CARRERAS, landingEntries } from "./carreras/index.js";
 import {
   TRONCO as CC440_TRONCO,
@@ -168,9 +177,90 @@ describe("evaluator", () => {
 
     const migrated = migrateProgress("cp", "cp8558_progreso_v1");
 
-    expect(migrated).toEqual({ a: ["eco", "tps1"], o: "app" });
-    expect(JSON.parse(store["sociales-map:cp"])).toEqual({ a: ["eco", "tps1"], o: "app" });
+    // Migración ADITIVA: a/o intactos, n arranca vacío (no había notas).
+    expect(migrated).toEqual({ a: ["eco", "tps1"], o: "app", n: {} });
+    expect(JSON.parse(store["sociales-map:cp"])).toEqual({ a: ["eco", "tps1"], o: "app", n: {} });
     delete globalThis.localStorage;
+  });
+});
+
+// ---- Notas y promedio ----
+describe("notas y promedio", () => {
+  it("parseProgress migra el array suelto sumando n:{} sin perder a", () => {
+    expect(parseProgress(JSON.stringify(["a", "b"]))).toEqual({ a: ["a", "b"], o: null, n: {} });
+  });
+
+  it("parseProgress migra {a,o} viejo sumando n:{} (aditivo, intacto)", () => {
+    expect(parseProgress(JSON.stringify({ a: ["a"], o: "per" }))).toEqual({
+      a: ["a"],
+      o: "per",
+      n: {},
+    });
+  });
+
+  it("parseProgress conserva n cuando ya existe (formato nuevo)", () => {
+    const raw = JSON.stringify({ a: ["met1"], o: null, n: { met1: 8 } });
+    expect(parseProgress(raw)).toEqual({ a: ["met1"], o: null, n: { met1: 8 } });
+  });
+
+  it("parseProgress ignora un n corrupto y lo deja en {}", () => {
+    const raw = JSON.stringify({ a: ["x"], o: null, n: "roto" });
+    expect(parseProgress(raw)).toEqual({ a: ["x"], o: null, n: {} });
+  });
+
+  it("migrateProgress conserva las notas ya guardadas en el formato nuevo", () => {
+    const store = {};
+    globalThis.localStorage = {
+      getItem: (k) => (k in store ? store[k] : null),
+      setItem: (k, v) => {
+        store[k] = String(v);
+      },
+      removeItem: (k) => {
+        delete store[k];
+      },
+    };
+    store["sociales-map:socio"] = JSON.stringify({ a: ["met1"], o: null, n: { met1: 9 } });
+    expect(migrateProgress("socio")).toEqual({ a: ["met1"], o: null, n: { met1: 9 } });
+    delete globalThis.localStorage;
+  });
+
+  it("averageOf: media simple a partir de materias comunes", () => {
+    expect(averageOf({ a: 8, b: 7, c: 10 })).toBeCloseTo(8.3333, 4);
+  });
+
+  it("averageOf: null cuando no hay ninguna nota (invisible en vacío)", () => {
+    expect(averageOf({})).toBe(null);
+    expect(averageOf(undefined)).toBe(null);
+  });
+
+  it("averageOf: una tarjeta-grupo aporta cada nota cargada como una", () => {
+    // Especiales aprobada con 2 de 6 notas → cuentan 2, no 1 ni 6.
+    expect(collectNotas({ espec: [8, 7, null, null, null, null] })).toEqual([8, 7]);
+    // Grupo (2 notas) + común (1 nota) → promedio sobre 3 valores.
+    expect(averageOf({ espec: [8, 7], met1: 9 })).toBeCloseTo(8, 5);
+  });
+
+  it("averageOf: excluye cupos vacíos y valores no numéricos", () => {
+    expect(collectNotas({ espec: [null, 6, null], teor: [], x: null })).toEqual([6]);
+    expect(averageOf({ espec: [null, 6, null], teor: [], x: null })).toBe(6);
+  });
+
+  it("averageOf: un grupo sin ninguna nota no altera el promedio", () => {
+    // Aprobaste Especiales pero no cargaste notas → no cuenta (como común sin nota).
+    expect(averageOf({ espec: [null, null], met1: 8 })).toBe(8);
+  });
+
+  it("normalizeNota: acepta 4–10 con decimales; rechaza fuera de rango y basura", () => {
+    expect(normalizeNota("8")).toBe(8);
+    expect(normalizeNota("8.5")).toBe(8.5);
+    expect(normalizeNota("7.256")).toBe(7.26); // redondeo a 2 decimales
+    expect(normalizeNota("4")).toBe(4);
+    expect(normalizeNota("10")).toBe(10);
+    expect(normalizeNota("3.9")).toBe(null); // < 4
+    expect(normalizeNota("10.1")).toBe(null); // > 10
+    expect(normalizeNota("")).toBe(null); // borrar → sale del promedio
+    expect(normalizeNota("abc")).toBe(null);
+    expect(normalizeNota(null)).toBe(null);
   });
 });
 
