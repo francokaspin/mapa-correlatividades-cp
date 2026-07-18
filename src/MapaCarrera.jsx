@@ -254,7 +254,12 @@ export default function MapaCarrera({ carrera }) {
     setNuevas(new Set());
   };
 
-  const Card = ({ it }) => {
+  // Render inline (NO un componente aparte): si fuera `const Card = () => …`
+  // definido acá adentro, React lo trataría como un tipo nuevo en cada render
+  // y remontaría la tarjeta en cada tecla — perdiendo foco y el texto a medio
+  // escribir del input de nota (no se podía tipear "10"). Como función que
+  // devuelve JSX, React reconcilia los <input> en su lugar y conserva su valor.
+  const renderCard = (it) => {
     const est = statusOf(it, ok, ori);
     const pide = RED[it.id] || [];
     const faltan = pide.filter((r) => !ok.has(r));
@@ -267,6 +272,7 @@ export default function MapaCarrera({ carrera }) {
     const llevaNota = est === "ok" && !it.requisito;
     const boton = (
       <button
+        key={it.id}
         className={`card ${est} ${esNueva ? "nueva" : ""} ${tiembla === it.id ? "tiembla" : ""}`}
         onClick={() => toggle(it)}
         aria-pressed={est === "ok"}
@@ -324,7 +330,7 @@ export default function MapaCarrera({ carrera }) {
       return typeof v === "number" ? v : "";
     };
     return (
-      <div className="card-slot">
+      <div className="card-slot" key={it.id}>
         {boton}
         <div className="notas">
           <span className="notas-lbl">{cupos > 1 ? `Notas · ${cupos} materias` : "Nota"}</span>
@@ -485,9 +491,7 @@ export default function MapaCarrera({ carrera }) {
               )}
 
               <div className="grilla">
-                {items.map((m) => (
-                  <Card key={m.id} it={m} />
-                ))}
+                {items.map((m) => renderCard(m))}
               </div>
             </section>
           );
