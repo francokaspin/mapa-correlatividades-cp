@@ -18,5 +18,8 @@ pnpm-debug.log*
 .DS_Store
 Thumbs.db
 
+# Claude Code (config/estado local del agente)
+.claude/
+
 # Vercel
 .vercel

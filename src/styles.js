@@ -112,6 +112,14 @@ export const CSS = `
   .carrera-card.inactivo { opacity: .72; }
   .carrera-card .estado { display: block; margin-top: 10px; font-size: 13px; font-weight: 700; letter-spacing: .04em; }
 
+  /* Paso intermedio de Comunicación: tarjeta de plan con la guía de transición. */
+  .plan-card .quien { display: block; margin-top: 8px; font-size: 12.5px; line-height: 1.5; opacity: .8; font-weight: 600; }
+  .marca-extinguir {
+    display: inline-block; margin-left: 8px; vertical-align: 2px;
+    font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em;
+    padding: 2px 7px; border-radius: 999px; border: 1.5px solid var(--accent); color: var(--accent);
+  }
+
   .message {
     font-size: 15px;
     line-height: 1.7;

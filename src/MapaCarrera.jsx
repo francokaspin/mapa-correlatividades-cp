@@ -56,6 +56,9 @@ function baseMinOf(it, countBase) {
 // Cuánto pesa una tarjeta en el conteo. Una tarjeta-grupo declara `cantidad`
 // (las 6 Sociologías Especiales de Sociología pesan 6); el resto pesa 1.
 function pesoDe(it) {
+  // Requisito de cursada (las PPP del 504): se marca y gatea, pero pesa 0 en
+  // la barra y en el conteo del bloque.
+  if (it.requisito) return 0;
   return typeof it.cantidad === "number" ? it.cantidad : 1;
 }
 
@@ -86,7 +89,14 @@ export default function MapaCarrera({ carrera }) {
   // `countKeys` = los bloques que suman a la barra. Por defecto solo countBase
   // (CP/RT/TS); Sociología además cuenta el tramo optativo (16 + 6 + 3 = 25).
   const countKeys = ui.countKeys || [ui.countBase];
-  const countArr = countKeys.flatMap((k) => plan[k] || []);
+  // Grupos que suman a la barra. `countGroups` (504) declara topes por bloque;
+  // si no está, se derivan de countKeys (CP/RT/TS/socio/440), un grupo por clave.
+  // Cada grupo aporta min(aprobadas, tope):
+  //   - tope explícito `cap` (504: Cs. Sociales 3/5, Introductorias 3, …)
+  //   - bloque con `ori` (440/504): cuenta solo la orientación/ciclo elegido, y
+  //     el tope es el tamaño de una orientación (todas iguales → total estable)
+  //   - sin tope: el peso total del bloque (comportamiento de siempre)
+  const countGroups = ui.countGroups || countKeys.map((k) => ({ key: k }));
   const orientaciones = plan.orientaciones || [];
   const orientationIds = orientaciones.map((o) => o.id);
 
@@ -141,7 +151,27 @@ export default function MapaCarrera({ carrera }) {
   const disponibles = (okSet, oriVal) =>
     new Set(TODAS.filter((it) => statusOf(it, okSet, oriVal) === "go").map((it) => it.id));
 
-  const nGen = sumaPesos(countArr, ok);
+  // Peso (tope) que una orientación aporta al título: todas las orientaciones/
+  // ciclos son del mismo tamaño, así que el total de la barra no cambia con la
+  // elección. Devuelve 0 si el bloque no usa `ori`.
+  const tamanioOrientacion = (arr) => {
+    const sizes = {};
+    arr.forEach((it) => {
+      if (it.ori) sizes[it.ori] = (sizes[it.ori] || 0) + pesoDe(it);
+    });
+    return Object.keys(sizes).length ? Math.max(...Object.values(sizes)) : 0;
+  };
+  // Aprobadas efectivas y tope de un bloque de conteo, respetando `ori` y `cap`.
+  const statsBloque = (arr, cap, oriFlag) => {
+    const esOri = oriFlag || arr.some((it) => it.ori);
+    const items = esOri ? arr.filter((it) => it.ori === ori) : arr;
+    const raw = sumaPesos(items, ok);
+    const tope = cap != null ? cap : esOri ? tamanioOrientacion(arr) : totalPesos(arr);
+    return { hechas: Math.min(raw, tope), tope };
+  };
+  const groupStats = countGroups.map((g) => statsBloque(plan[g.key] || [], g.cap, g.ori));
+  const nGen = groupStats.reduce((a, s) => a + s.hechas, 0);
+  const total = groupStats.reduce((a, s) => a + s.tope, 0);
 
   const toggle = (it) => {
     const est = statusOf(it, ok, ori);
@@ -207,7 +237,11 @@ export default function MapaCarrera({ carrera }) {
           <span className="nom">
             {it.n}
             {it.anual && <span className="badge-anual">Anual</span>}
-            {typeof it.cantidad === "number" && <span className="badge-cupos">×{it.cantidad}</span>}
+            {typeof it.cantidad === "number" && it.cantidad > 1 && (
+              <span className="badge-cupos">×{it.cantidad}</span>
+            )}
+            {it.requisito && <span className="badge-req">Requisito</span>}
+            {it.compartida && <span className="badge-comp">Compartida</span>}
             {it.reqAprobadas && <span className="badge-aprob">Aprobadas</span>}
           </span>
 
@@ -229,6 +263,8 @@ export default function MapaCarrera({ carrera }) {
           {est !== "no" && abre.length > 0 && (
             <span className="meta abre">Abre: {abre.join(" · ")}</span>
           )}
+          {/* Comentario del archivo (cupos "Optativa o seminario" del 440). */}
+          {it.nota && <span className="meta nota">{it.nota}</span>}
         </span>
         {est === "ok" && <span className="sello" aria-hidden="true">APROBADA</span>}
         {esNueva && est === "go" && <span className="flash" aria-hidden="true">¡SE ABRIÓ!</span>}
@@ -245,7 +281,6 @@ export default function MapaCarrera({ carrera }) {
     );
   }
 
-  const total = totalPesos(countArr);
   const pct = Math.round((nGen / total) * 100);
 
   return (
@@ -283,10 +318,13 @@ export default function MapaCarrera({ carrera }) {
               </span>
             ))}
             {/* Pills informativas: sin tick ni conteo. Si el hito declara `req`
-                (las 200 hs de Sociología), la pill se enciende al cumplirlo. */}
+                (las 200 hs de Sociología), la pill se enciende al cumplirlo.
+                `whenComplete` (el TIF del 504) además exige la barra completa. */}
             {(ui.infoPills || []).map((p, i) => {
-              const cumplido =
+              const reqOk =
                 Array.isArray(p.req) && p.req.length > 0 && p.req.every((r) => ok.has(r));
+              const cumplido =
+                p.whenComplete ? nGen >= total && reqOk : reqOk;
               return (
                 <span key={`info${i}`} className={`pill info${cumplido ? " on" : ""}`}>
                   {cumplido && p.labelOn ? p.labelOn : p.label}
@@ -309,10 +347,16 @@ export default function MapaCarrera({ carrera }) {
         </div>
 
         {blocks.map((b) => {
-          const items = plan[b.planKey] || [];
-          // Pesado: el tramo optativo de Sociología cuenta cupos (0/9), no tarjetas (0/2).
-          const hechas = sumaPesos(items, ok);
-          const totalBloque = totalPesos(items);
+          const rawItems = plan[b.planKey] || [];
+          // Bloque con materias `ori` (440/504): mostrá solo la orientación/ciclo
+          // elegido. Sin `ori` (CP/RT/TS/socio) se muestran todas, como siempre.
+          const oriBlock = rawItems.some((it) => it.ori);
+          const items = oriBlock ? rawItems.filter((it) => it.ori === ori) : rawItems;
+          // Conteo del bloque: respeta el tope (Cs. Sociales 3/5) y el filtro por
+          // orientación, con la misma regla que la barra. El tramo optativo de
+          // Sociología cuenta cupos (0/9), no tarjetas (0/2); las PPP (peso 0)
+          // dan tope 0 → se les oculta el contador.
+          const { hechas, tope: totalBloque } = statsBloque(rawItems, b.cap, oriBlock);
           return (
             <section className="bloque" key={b.planKey}>
               <div className="bloque-head">
@@ -320,23 +364,34 @@ export default function MapaCarrera({ carrera }) {
                   <h2>{b.title}</h2>
                   <p>{b.subtitle}</p>
                 </div>
-                <span className="conteo">{hechas}/{totalBloque}</span>
+                {totalBloque > 0 && <span className="conteo">{hechas}/{totalBloque}</span>}
               </div>
 
               {b.orientaciones && (
                 <div className="orientaciones">
                   <span className="ori-label">Tu orientación:</span>
-                  {orientaciones.map((o) => (
-                    <button
-                      key={o.id}
-                      className={`ori ${ori === o.id ? "activa" : ""}`}
-                      onClick={() => elegirOri(o.id)}
-                    >
-                      {o.label}
-                      <em>{ok.has(o.id) ? " · cabecera ✓" : ` · cabecera: ${byId[o.id].s}`}</em>
-                    </button>
-                  ))}
+                  {orientaciones.map((o) => {
+                    const cab = byId[o.id]; // el 440 no tiene cabecera-materia
+                    return (
+                      <button
+                        key={o.id}
+                        className={`ori ${ori === o.id ? "activa" : ""}`}
+                        onClick={() => elegirOri(o.id)}
+                      >
+                        {o.label}
+                        {cab ? (
+                          <em>{ok.has(o.id) ? " · cabecera ✓" : ` · cabecera: ${cab.s}`}</em>
+                        ) : o.nota ? (
+                          <em> · {o.nota}</em>
+                        ) : null}
+                      </button>
+                    );
+                  })}
                 </div>
+              )}
+
+              {oriBlock && !ori && (
+                <p className="ori-vacio">Elegí una orientación para ver sus materias.</p>
               )}
 
               <div className="grilla">
@@ -554,10 +609,18 @@ const CSS = `
   .badge-cupos { font-family: var(--mono); letter-spacing: .02em; opacity: 1; }
   /* Excepción [c] del plan: este grupo pide las correlativas con final aprobado. */
   .badge-aprob { border-style: dashed; opacity: .75; }
+  /* PPP del 504: requisito de cursada, peso 0. */
+  .badge-req { border-style: dashed; opacity: .8; }
+  /* Materias (*) del 504: se cursan desde cualquier ciclo orientado (copy, sin lógica en v1). */
+  .badge-comp { border-style: dashed; opacity: .75; }
   .meta { font-size: 11px; line-height: 1.35; font-weight: 600; }
   .meta.abre { opacity: .72; }
   .meta.pide { opacity: .78; }
   .meta.falta { color: #FF9C8D; font-weight: 700; }
+  /* Comentario de los cupos "Optativa o seminario" (plan 440). */
+  .meta.nota { opacity: .72; font-weight: 600; }
+  /* Aviso cuando todavía no se eligió orientación (plan 440). */
+  .ori-vacio { font-size: 12px; opacity: .6; font-style: italic; margin: 2px 0 12px; }
 
   .sello {
     position: absolute; top: -8px; right: 8px;
