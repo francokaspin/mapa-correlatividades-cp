@@ -58,21 +58,29 @@ ctx.fillStyle = NEGRO;
 ctx.font = `28px ${HEAVY}`;
 ctx.textBaseline = "alphabetic";
 ctx.save();
-ctx.translate(MX, 118);
-letterSpaced(ctx, "CIENCIA POLÍTICA · UBA SOCIALES", 6);
+ctx.translate(MX, 110);
+letterSpaced(ctx, "UBA · FACULTAD DE CIENCIAS SOCIALES", 6);
 ctx.restore();
 
-// Punto lima->negro como en el header
 // Título grande (Impact), negro sobre lima
 ctx.fillStyle = NEGRO;
-ctx.font = `132px ${DISPLAY}`;
-ctx.fillText("MAPA DE", MX, 268);
-ctx.fillText("CORRELATIVIDADES", MX, 396);
+ctx.font = `122px ${DISPLAY}`;
+ctx.fillText("MAPA DE", MX, 244);
+ctx.fillText("CORRELATIVIDADES", MX, 362);
 
 // Tagline
-ctx.font = `34px ${BOLD}`;
+ctx.font = `32px ${BOLD}`;
 ctx.fillStyle = "#1c1d10";
-ctx.fillText("Marcá lo que aprobaste y mirá qué se te abre.", MX, 456);
+ctx.fillText("Marcá lo que aprobaste y mirá qué podés cursar.", MX, 418);
+
+// Las cinco carreras (dot-separated, mismo registro del eyebrow)
+ctx.font = `26px ${BOLD}`;
+ctx.fillStyle = NEGRO;
+ctx.fillText(
+  "Ciencia Política · Sociología · Comunicación · Relaciones del Trabajo · Trabajo Social",
+  MX,
+  462,
+);
 
 // Chips de leyenda (ok / go / no), como la UI
 const chips = [
