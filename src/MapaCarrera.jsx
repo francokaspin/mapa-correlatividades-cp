@@ -870,10 +870,13 @@ const CSS = `
   /* Solo aparece en tarjetas-grupo con oferta cargada y ya aprobadas:
      select del seminario + input de nota + metadata (modalidad/TIF/PDF).
      El estado por defecto (sin marcar) no cambia → oráculo intacto. */
-  .notas.con-oferta { flex-direction: column; align-items: stretch; gap: 9px; }
-  .cupo { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+  /* min-width:0 en la cadena flex + width:100% en el select evitan que las
+     opciones de título largo fuercen el ancho intrínseco del <select> y estiren
+     la tarjeta (overflow horizontal a ≤768px). Ver fix del selector. */
+  .notas.con-oferta { flex-direction: column; align-items: stretch; gap: 9px; min-width: 0; }
+  .cupo { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; min-width: 0; }
   .cupo-sel {
-    flex: 1 1 180px; min-width: 0; max-width: 100%;
+    flex: 1 1 180px; min-width: 0; max-width: 100%; width: 100%;
     padding: 5px 8px; font-family: var(--body); font-size: 12px; font-weight: 700;
     color: var(--tinta); background: var(--tarjeta);
     border: 2px solid var(--tinta); border-radius: 7px; cursor: pointer;
