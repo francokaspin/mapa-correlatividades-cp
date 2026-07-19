@@ -50,4 +50,4 @@ La imagen de previsualización para redes (`public/og-image.png`, 1200×630) se 
 
 ## Licencia
 
-A definir.
+[MIT](LICENSE) · Copyright (c) 2026 Franco Kaspin.
