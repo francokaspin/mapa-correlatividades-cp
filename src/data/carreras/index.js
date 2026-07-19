@@ -28,6 +28,9 @@ import {
   IDIOMA as CC504_IDIOMA,
 } from "./cc504.js";
 import { CP_UI, RT_UI, TS_UI, SOCIO_UI, CC440_UI, CC504_UI } from "./ui.js";
+// Capa 2 (oferta concreta, volátil): oferta nominada de seminarios por
+// cuatrimestre. Separada de la regla del plan (cc504.js). Ver src/data/ofertas/.
+import { OFERTA_CC504 } from "../ofertas/cc504.js";
 
 // Acento único de Ciencias de la Comunicación (los dos planes lo comparten).
 // Periwinkle: hue 231°, contraste 7.29:1 con el texto negro (>AA), y la mayor
@@ -79,6 +82,8 @@ export const CARRERAS = [
         idioma: CC504_IDIOMA,
         orientaciones: CC504_CICLOS,
       },
+      // Oferta concreta versionada (llena el slot-grupo `seminarios`/`sem`).
+      oferta: OFERTA_CC504,
       ui: CC504_UI,
     },
   },
