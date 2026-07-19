@@ -23,3 +23,7 @@ Thumbs.db
 
 # Vercel
 .vercel
+
+# Archivos locales de trabajo (privados, no publicar)
+/socio.js
+/docs/investigacion-electivas-optativas.md
