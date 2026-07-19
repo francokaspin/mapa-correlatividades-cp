@@ -74,13 +74,25 @@ export function averageOf(n) {
 }
 
 // Valida y normaliza una nota tipeada: número 4–10 con hasta 2 decimales.
-// Fuera de rango, vacío o basura → null (no cuenta / borra la nota).
+// Acepta coma o punto como separador decimal (público es-AR: la coma es el
+// separador natural y el teclado mobile la ofrece). Fuera de rango, vacío o
+// basura → null (no cuenta / borra la nota). El storage sigue guardando el
+// número (JSON con punto): cero cambios de esquema.
 export function normalizeNota(raw) {
-  if (raw === "" || raw == null) return null;
-  const v = Number(raw);
+  if (raw == null) return null;
+  const s = String(raw).trim().replace(",", ".");
+  if (s === "") return null;
+  const v = Number(s);
   if (!Number.isFinite(v)) return null;
   if (v < 4 || v > 10) return null;
   return Math.round(v * 100) / 100;
+}
+
+// Muestra un número al estilo es-AR: coma decimal, enteros sin decimales
+// ("8", "7,5", "8,25"). Solo presentación; el valor guardado no cambia.
+export function formatAR(v) {
+  if (typeof v !== "number" || !Number.isFinite(v)) return "";
+  return String(v).replace(".", ",");
 }
 
 export function countGeneral(okSet, generalIds) {
