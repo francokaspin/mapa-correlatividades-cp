@@ -92,3 +92,17 @@ describe("oferta cc504 · degradación limpia", () => {
     expect(ofertaDeSlot({ vigente: "x", periodos: {} }, "sem")).toEqual([]);
   });
 });
+
+describe("oferta cc504 · deuda oferta anterior", () => {
+  it("un id guardado que no está en la oferta vigente devuelve undefined", () => {
+    // Comportamiento actual: MapaCarrera hace ofertaLista.find(s => s.id === guardado)
+    // → si el estudiante guardó una elección de un período anterior que ya no
+    // está en la oferta vigente, find() devuelve undefined y el cupo se renderiza
+    // SIN metadata (sin badge de modalidad/TIF ni link al PDF).
+    // DEUDA: antes de rotar el período vigente, implementar badge "oferta anterior"
+    // para ids guardados fuera de la oferta (ver DISENO-ELECTIVAS.md). No se
+    // implementa acá: este test solo fija el comportamiento actual.
+    const sem = ofertaDeSlot(OFERTA_CC504, "sem");
+    expect(sem.find((s) => s.id === "SeminarioViejo2025")).toBeUndefined();
+  });
+});

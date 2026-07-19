@@ -38,6 +38,7 @@
      cantidad exigida ni las correlativas: eso vive en el plan
      504 (ya modelado en cc504.js: `REQ_SEMINARIOS` = 3 aprobadas
      del Recorrido Aplicado).
+   · Método 4 — disponibilidad: los 23 PDFs respondieron HTTP 200 (chequeo 2026-07-19).
 
    NOTAS DE INTERPRETACIÓN:
    [a] `tif: true` marca los seminarios rotulados "Seminario TIF"
