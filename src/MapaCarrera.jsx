@@ -89,7 +89,7 @@ function hasOrientationReq(it) {
 
 export default function MapaCarrera({ carrera }) {
   const { plan, ui } = carrera.data;
-  const accent = carrera.color || "#C8D62B";
+  const accent = carrera.color || "#1C1B18";
 
   const blocks = ui.blocks;
   // `countBase` = la pila que resuelve los req { min, of: 'general' }.
@@ -553,15 +553,22 @@ const CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;600;800&display=swap');
 
   :root {
-    --lima: #C8D62B;
-    --negro: #121210;
-    --panel: #17170f;
-    --crema: #F5F1E0;
-    --ok: #46AB4F;
-    --go: #F3C51D;
-    --no: #E14B3B;
-    --no-bg: #3B1512;
-    --accent: #C8D62B;
+    --papel: #F3EDE0;
+    --tarjeta: #FFFDF8;
+    --borde: #D9D2C0;
+    --tinta: #1C1B18;
+    --tinta2: #6B675C;
+    --ok: #3E8E5A;
+    --go: #E8A716;
+    --no: #D6453C;
+    --ok-tx: #26593A;
+    --go-tx: #7A5A0B;
+    --no-tx: #8C2622;
+    --ok-bg: #ECF2E8;
+    --go-bg: #FDF4E1;
+    --no-bg: #FBEBE5;
+    --sello-bg: #1C1B18;
+    --sello-tx: #F3EDE0;
     --disp: 'Anton', 'Impact', 'Haettenschweiler', 'Arial Narrow Bold', sans-serif;
     --body: 'Archivo', 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
     --mono: 'Courier New', monospace;
@@ -570,9 +577,9 @@ const CSS = `
 
   .pagina {
     min-height: 100vh;
-    background: var(--accent);
+    background: var(--papel);
     font-family: var(--body);
-    color: var(--negro);
+    color: var(--tinta);
     padding: clamp(14px, 3vw, 36px);
   }
   .pagina.cargando { display: grid; place-items: center; font-weight: 800; letter-spacing: .5px; }
@@ -590,7 +597,12 @@ const CSS = `
     line-height: .92; letter-spacing: .01em; font-weight: 400;
   }
   .tablero { margin-top: 16px; display: grid; gap: 12px; }
-  .contador { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .contador {
+    display: inline-flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+    width: fit-content;
+    background: var(--sello-bg); color: var(--sello-tx);
+    padding: 8px 14px; border-radius: 12px;
+  }
   .contador .num { font-family: var(--disp); font-size: clamp(38px, 5vw, 52px); line-height: 1; }
   .contador .de { font-weight: 800; text-transform: uppercase; letter-spacing: .08em; font-size: 12px; }
 
@@ -598,7 +610,7 @@ const CSS = `
   .promedio {
     display: inline-flex; align-items: baseline; gap: 7px;
     margin-left: 6px; padding-left: 16px;
-    border-left: 2px solid rgba(18,18,16,.35);
+    border-left: 2px solid rgba(243,237,224,.35);
   }
   .promedio .prom-num { font-family: var(--disp); font-size: clamp(30px, 4vw, 42px); line-height: 1; }
   .promedio .prom-lbl { font-weight: 800; text-transform: uppercase; letter-spacing: .08em; font-size: 12px; }
@@ -606,48 +618,49 @@ const CSS = `
 
   .progreso { max-width: 680px; }
   .barra {
-    position: relative; height: 16px; background: var(--negro);
-    border: 2px solid var(--negro); border-radius: 999px; overflow: hidden;
+    position: relative; height: 16px; background: var(--borde);
+    border: 2px solid var(--tinta); border-radius: 999px; overflow: hidden;
   }
   .lleno { height: 100%; background: var(--ok); transition: width .35s ease; }
-  .tickbar { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--crema); opacity: .85; }
+  .tickbar { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--tinta); opacity: .85; }
   .marcas { position: relative; height: 16px; margin-top: 3px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
   .marcas span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
 
   .hitos { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
   .pill {
-    border: 2px solid var(--negro); border-radius: 999px;
+    border: 2px solid var(--tinta); border-radius: 999px;
     padding: 5px 12px; font-size: 12px; font-weight: 800;
     text-transform: uppercase; letter-spacing: .04em;
   }
-  .pill.on { background: var(--negro); color: var(--accent); }
+  .pill.on { background: var(--sello-bg); color: var(--sello-tx); }
   .pill.info { background: transparent; border-style: dashed; opacity: .82; letter-spacing: .02em; }
   /* Hito informativo con req cumplido: se enciende, pero nunca lleva tick ni conteo. */
-  .pill.info.on { background: var(--negro); color: var(--accent); border-style: solid; opacity: 1; }
+  .pill.info.on { background: var(--sello-bg); color: var(--sello-tx); border-style: solid; opacity: 1; }
   .reset {
-    margin-left: auto; border: 2px solid var(--negro); background: var(--crema);
+    margin-left: auto; border: 2px solid var(--tinta); background: var(--tarjeta);
+    color: var(--tinta);
     border-radius: 999px; padding: 6px 14px; font-family: var(--body);
     font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em;
-    cursor: pointer; box-shadow: 3px 3px 0 var(--negro); transition: transform .08s ease;
+    cursor: pointer; box-shadow: 3px 3px 0 rgba(28,27,24,.28); transition: transform .08s ease;
   }
-  .reset:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--negro); }
-  .reset.seguro { background: var(--no); color: #fff; }
+  .reset:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 rgba(28,27,24,.28); }
+  .reset.seguro { background: var(--no-tx); color: var(--papel); border-color: var(--no-tx); }
 
   /* ---------- Panel ---------- */
   .panel {
     max-width: 1120px; margin: 0 auto;
-    background: var(--panel);
-    border: 3px solid var(--negro); border-radius: 18px;
-    box-shadow: 9px 9px 0 rgba(18,18,16,.55);
+    background: var(--tarjeta);
+    border: 3px solid var(--borde); border-radius: 18px;
+    box-shadow: 9px 9px 0 rgba(28,27,24,.16);
     padding: clamp(14px, 2.5vw, 28px);
-    color: var(--crema);
+    color: var(--tinta);
   }
   .leyenda {
     display: flex; flex-wrap: wrap; gap: 14px; align-items: center;
     font-size: 12px; font-weight: 700; letter-spacing: .02em;
-    padding-bottom: 14px; border-bottom: 1px dashed rgba(245,241,224,.25); margin-bottom: 6px;
+    padding-bottom: 14px; border-bottom: 1px dashed var(--borde); margin-bottom: 6px;
   }
-  .dot { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 5px; border: 1.5px solid rgba(0,0,0,.5); vertical-align: -1px; }
+  .dot { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 5px; border: 1.5px solid rgba(28,27,24,.35); vertical-align: -1px; }
   .dot.ok { background: var(--ok); } .dot.go { background: var(--go); } .dot.no { background: var(--no); }
   .guardado { margin-left: auto; opacity: .65; font-weight: 600; }
 
@@ -655,7 +668,7 @@ const CSS = `
   .bloque-head { display: flex; align-items: end; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
   .bloque-head h2 {
     font-family: var(--disp); font-weight: 400; text-transform: uppercase;
-    color: var(--accent); font-size: clamp(18px, 2.4vw, 24px); letter-spacing: .04em;
+    color: var(--tinta); font-size: clamp(18px, 2.4vw, 24px); letter-spacing: .04em;
   }
   .bloque-head p { font-size: 12px; opacity: .7; margin-top: 2px; max-width: 640px; }
   .conteo { font-family: var(--mono); font-weight: 700; font-size: 15px; opacity: .85; white-space: nowrap; }
@@ -672,45 +685,46 @@ const CSS = `
   }
   .ori-label { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; opacity: .75; }
   .ori {
-    border: 2px solid rgba(245,241,224,.45); background: transparent; color: var(--crema);
+    border: 2px solid var(--borde); background: transparent; color: var(--tinta);
     border-radius: 999px; padding: 5px 11px; font-family: var(--body);
     font-size: 11.5px; font-weight: 700; cursor: pointer;
   }
   .ori em { font-style: normal; opacity: .6; font-weight: 600; }
-  .ori.activa { background: var(--accent); border-color: var(--accent); color: var(--negro); }
+  .ori.activa { background: var(--sello-bg); border-color: var(--sello-bg); color: var(--sello-tx); }
   .ori.activa em { opacity: .75; }
-  .ori:focus-visible { outline: 3px solid var(--crema); outline-offset: 2px; }
+  .ori:focus-visible { outline: 3px solid var(--tinta); outline-offset: 2px; }
 
   /* ---------- Tarjetas ---------- */
   .card {
     position: relative; display: flex; gap: 10px; align-items: flex-start;
     text-align: left; border-radius: 12px; padding: 11px 12px;
-    border: 2px solid var(--negro);
-    box-shadow: 4px 4px 0 rgba(0,0,0,.5);
+    border: 2px solid var(--borde);
+    box-shadow: 4px 4px 0 rgba(28,27,24,.14);
     font-family: var(--body); cursor: pointer;
     transition: transform .08s ease, box-shadow .08s ease;
+    background: var(--tarjeta);
   }
-  .card:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 rgba(0,0,0,.5); }
-  .card:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 rgba(0,0,0,.5); }
-  .card:focus-visible { outline: 3px solid var(--crema); outline-offset: 2px; }
+  .card:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 rgba(28,27,24,.14); }
+  .card:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 rgba(28,27,24,.14); }
+  .card:focus-visible { outline: 3px solid var(--tinta); outline-offset: 2px; }
 
-  .card.ok { background: var(--ok); color: #0c1c0e; }
-  .card.go { background: var(--go); color: #1b1500; }
+  .card.ok { background: var(--ok-bg); color: var(--ok-tx); border-color: var(--ok); }
+  .card.go { background: var(--go-bg); color: var(--go-tx); border-color: var(--go); }
   .card.no {
-    background: var(--no-bg); color: #F2B7AE;
+    background: var(--no-bg); color: var(--no-tx);
     border-color: var(--no); cursor: not-allowed;
   }
-  .card.no:hover { transform: none; box-shadow: 4px 4px 0 rgba(0,0,0,.5); }
+  .card.no:hover { transform: none; box-shadow: 4px 4px 0 rgba(28,27,24,.14); }
 
   .tick {
     flex: none; width: 22px; height: 22px; margin-top: 1px;
     border: 2.5px solid currentColor; border-radius: 6px;
     display: grid; place-items: center;
     font-weight: 900; font-size: 15px; line-height: 1;
-    background: rgba(255,255,255,.25);
+    background: var(--tarjeta);
   }
   .card.no .tick {
-    background: repeating-linear-gradient(45deg, transparent 0 4px, rgba(225,75,59,.55) 4px 8px);
+    background: repeating-linear-gradient(45deg, transparent 0 4px, rgba(214,69,60,.45) 4px 8px);
     border-color: var(--no);
   }
 
@@ -733,7 +747,7 @@ const CSS = `
   .meta { font-size: 11px; line-height: 1.35; font-weight: 600; }
   .meta.abre { opacity: .72; }
   .meta.pide { opacity: .78; }
-  .meta.falta { color: #FF9C8D; font-weight: 700; }
+  .meta.falta { color: var(--no-tx); font-weight: 700; }
   /* Comentario de los cupos "Optativa o seminario" (plan 440). */
   .meta.nota { opacity: .72; font-weight: 600; }
   /* Aviso cuando todavía no se eligió orientación (plan 440). */
@@ -744,46 +758,46 @@ const CSS = `
   .notas {
     display: flex; flex-wrap: wrap; align-items: center; gap: 7px;
     margin-top: -4px; padding: 9px 12px 10px;
-    background: rgba(18,18,16,.14);
-    border: 2px solid var(--negro); border-top: none;
+    background: var(--ok-bg);
+    border: 2px solid var(--ok); border-top: none;
     border-radius: 0 0 12px 12px;
   }
   .notas-lbl {
     font-size: 10px; font-weight: 800; text-transform: uppercase;
-    letter-spacing: .07em; color: #0c1c0e; opacity: .8;
+    letter-spacing: .07em; color: var(--ok-tx); opacity: .8;
   }
   .nota-input {
     width: 52px; padding: 4px 6px; font-family: var(--body);
     font-size: 13px; font-weight: 800; text-align: center;
-    color: #0c1c0e; background: var(--crema);
-    border: 2px solid var(--negro); border-radius: 7px;
+    color: var(--tinta); background: var(--tarjeta);
+    border: 2px solid var(--tinta); border-radius: 7px;
     -moz-appearance: textfield;
   }
   .nota-input::-webkit-outer-spin-button,
   .nota-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-  .nota-input::placeholder { color: #0c1c0e; opacity: .35; font-weight: 700; }
-  .nota-input:focus-visible { outline: 3px solid var(--negro); outline-offset: 1px; }
-  .nota-input:not(:placeholder-shown):invalid { border-color: var(--no); background: #f7d9d3; }
+  .nota-input::placeholder { color: var(--tinta2); opacity: .55; font-weight: 700; }
+  .nota-input:focus-visible { outline: 3px solid var(--tinta); outline-offset: 1px; }
+  .nota-input:not(:placeholder-shown):invalid { border-color: var(--no); background: var(--no-bg); }
 
   .sello {
     position: absolute; top: -8px; right: 8px;
     transform: rotate(-7deg);
     font-family: var(--disp); font-size: 10px; letter-spacing: .12em;
-    color: #0c1c0e; background: var(--accent);
-    border: 2px solid #0c1c0e; border-radius: 4px; padding: 1px 7px;
+    color: var(--sello-tx); background: var(--sello-bg);
+    border: 2px solid var(--sello-bg); border-radius: 4px; padding: 1px 7px;
   }
   .flash {
     position: absolute; top: -9px; right: 8px;
     transform: rotate(-7deg);
     font-family: var(--disp); font-size: 10px; letter-spacing: .12em;
-    color: var(--go); background: var(--negro);
+    color: var(--go); background: var(--tinta);
     border: 2px solid var(--go); border-radius: 4px; padding: 1px 7px;
   }
 
   .card.nueva { animation: pulso 1s ease-in-out 3; }
   @keyframes pulso {
-    0%, 100% { box-shadow: 4px 4px 0 rgba(0,0,0,.5); }
-    50% { box-shadow: 0 0 0 5px rgba(243,197,29,.55), 4px 4px 0 rgba(0,0,0,.5); }
+    0%, 100% { box-shadow: 4px 4px 0 rgba(28,27,24,.14); }
+    50% { box-shadow: 0 0 0 5px rgba(232,167,22,.5), 4px 4px 0 rgba(28,27,24,.14); }
   }
   .card.tiembla { animation: sacudida .4s ease; }
   @keyframes sacudida {
@@ -795,19 +809,19 @@ const CSS = `
 
   .pie {
     margin-top: 26px; padding-top: 12px;
-    border-top: 1px dashed rgba(245,241,224,.25);
+    border-top: 1px dashed var(--borde);
     font-size: 11px; line-height: 1.5;
     display: grid; gap: 8px;
   }
   .pie-nota { opacity: .6; }
   .pie-creditos { opacity: .85; font-weight: 600; }
   .pie-creditos a {
-    color: var(--accent); text-decoration: none;
-    border-bottom: 1px solid rgba(200,214,43,.4);
+    color: var(--tinta); text-decoration: none;
+    border-bottom: 1px solid rgba(28,27,24,.3);
     transition: border-color .12s ease, opacity .12s ease;
   }
-  .pie-creditos a:hover { border-bottom-color: var(--accent); }
-  .pie-creditos a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+  .pie-creditos a:hover { border-bottom-color: var(--tinta); }
+  .pie-creditos a:focus-visible { outline: 2px solid var(--tinta); outline-offset: 2px; border-radius: 2px; }
   .pie-sep { margin: 0 8px; opacity: .45; }
   @media (max-width: 520px) {
     .pie-sep { display: block; height: 0; margin: 4px 0; overflow: hidden; }

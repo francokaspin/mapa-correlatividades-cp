@@ -1,6 +1,6 @@
 /**
  * Genera la og-image estática (1200x630) para las previsualizaciones de link
- * (WhatsApp, Twitter, etc.). Estética lima/negro de la app.
+ * (WhatsApp, Twitter, etc.). Estética "Papel y Tinta" de la app.
  *
  * Requiere @napi-rs/canvas (binario prearmado, sin compilación nativa):
  *
@@ -18,13 +18,13 @@ import { fileURLToPath } from "node:url";
 const W = 1200;
 const H = 630;
 
-// Paleta de la app
-const LIMA = "#C8D62B";
-const NEGRO = "#121210";
-const CREMA = "#F5F1E0";
-const OK = "#46AB4F";
-const GO = "#F3C51D";
-const NO = "#E14B3B";
+// Paleta de la app · Papel y Tinta
+const PAPEL = "#F3EDE0";
+const TINTA = "#1C1B18";
+const PAPEL_TX = "#F3EDE0";
+const OK = "#3E8E5A";
+const GO = "#E8A716";
+const NO = "#D6453C";
 
 // Fuentes del sistema (Windows). Registramos si existen.
 const FONTS = [
@@ -43,18 +43,18 @@ const canvas = createCanvas(W, H);
 const ctx = canvas.getContext("2d");
 
 // Fondo lima
-ctx.fillStyle = LIMA;
+ctx.fillStyle = PAPEL;
 ctx.fillRect(0, 0, W, H);
 
 // Marco negro interior (guiño al borde grueso de las tarjetas)
-ctx.strokeStyle = NEGRO;
+ctx.strokeStyle = TINTA;
 ctx.lineWidth = 10;
 ctx.strokeRect(28, 28, W - 56, H - 56);
 
 const MX = 76; // margen izquierdo del contenido
 
 // Eyebrow
-ctx.fillStyle = NEGRO;
+ctx.fillStyle = TINTA;
 ctx.font = `28px ${HEAVY}`;
 ctx.textBaseline = "alphabetic";
 ctx.save();
@@ -63,19 +63,19 @@ letterSpaced(ctx, "UBA · FACULTAD DE CIENCIAS SOCIALES", 6);
 ctx.restore();
 
 // Título grande (Impact), negro sobre lima
-ctx.fillStyle = NEGRO;
+ctx.fillStyle = TINTA;
 ctx.font = `122px ${DISPLAY}`;
 ctx.fillText("MAPA DE", MX, 244);
 ctx.fillText("CORRELATIVIDADES", MX, 362);
 
 // Tagline
 ctx.font = `32px ${BOLD}`;
-ctx.fillStyle = "#1c1d10";
+ctx.fillStyle = TINTA;
 ctx.fillText("Marcá lo que aprobaste y mirá qué podés cursar.", MX, 418);
 
 // Las cinco carreras (dot-separated, mismo registro del eyebrow)
 ctx.font = `26px ${BOLD}`;
-ctx.fillStyle = NEGRO;
+ctx.fillStyle = TINTA;
 ctx.fillText(
   "Ciencia Política · Sociología · Comunicación · Relaciones del Trabajo · Trabajo Social",
   MX,
@@ -98,7 +98,7 @@ for (const [color, label] of chips) {
   const chipW = padX * 2 + dotW + textW;
   // fondo negro del chip
   roundRect(ctx, cx, cy, chipW, 48, 24);
-  ctx.fillStyle = NEGRO;
+  ctx.fillStyle = TINTA;
   ctx.fill();
   // dot de color
   ctx.beginPath();
@@ -106,7 +106,7 @@ for (const [color, label] of chips) {
   ctx.fillStyle = color;
   ctx.fill();
   // label
-  ctx.fillStyle = CREMA;
+  ctx.fillStyle = PAPEL_TX;
   ctx.textBaseline = "middle";
   ctx.fillText(label, cx + padX + dotW, cy + 25);
   ctx.textBaseline = "alphabetic";

@@ -152,7 +152,7 @@ export default function App() {
     setPageMeta(carrera || grupo || null);
     document.documentElement.style.setProperty(
       "--accent",
-      carrera?.color || grupo?.color || "#C8D62B"
+      carrera?.color || grupo?.color || "#1C1B18"
     );
   }, [carrera, grupo]);
 
