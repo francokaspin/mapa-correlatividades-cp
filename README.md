@@ -51,3 +51,11 @@ La imagen de previsualización para redes (`public/og-image.png`, 1200×630) se 
 ## Licencia
 
 [MIT](LICENSE) · Copyright (c) 2026 Franco Kaspin.
+
+## Autoría
+
+Proyecto personal de **Franco Kaspin**, estudiante de Ciencia Política (UBA Sociales), desarrollado y mantenido por él.
+
+¿Encontraste un error en una correlativa o querés proponer un cambio? Escribime a francokaspin@gmail.com o abrí un issue en el [repositorio en GitHub](https://github.com/francokaspin/mapa-correlatividades-cp).
+
+Código abierto bajo licencia [MIT](LICENSE).
