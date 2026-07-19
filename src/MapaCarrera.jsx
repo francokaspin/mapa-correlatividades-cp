@@ -8,6 +8,7 @@ import {
   normalizeNota,
   formatAR,
 } from "./data/evaluator.js";
+import { ofertaDeSlot } from "./data/ofertas/cc504.js";
 
 // Gate de tipeo del input de nota (permisivo, NO valida rango): hasta 2 dígitos
 // enteros y hasta 2 decimales tras coma o punto. El vacío entra. El rango [4,10]
@@ -113,12 +114,19 @@ export default function MapaCarrera({ carrera }) {
   const TODAS = blocks.flatMap((b) => plan[b.planKey] || []);
   const { byId, RED, ABRE } = buildGraph(TODAS);
   const KEY = getProgressKey(carrera.id);
+  // Clave separada para las elecciones de oferta (aislada del blob de progreso).
+  const ELEC_KEY = `${KEY}:elec`;
 
   const [ok, setOk] = useState(() => new Set());
   const [ori, setOri] = useState(null);
   // Notas cargadas: { [id]: nota } para materias comunes, { [id]: (nota|null)[] }
   // para tarjetas-grupo (una por cupo). Ver evaluator.collectNotas/averageOf.
   const [notas, setNotas] = useState(() => ({}));
+  // Elecciones de oferta concreta: { [cardId]: (semId|null)[] } (una por cupo).
+  // Se guardan en una clave de storage APARTE (no toca el blob {a,o,n} ni el
+  // evaluador): capa de presentación pura, no altera gate/peso/conteo/promedio.
+  const [elec, setElec] = useState(() => ({}));
+  const oferta = carrera.data.oferta;
   const [listo, setListo] = useState(false);
   const [nuevas, setNuevas] = useState(() => new Set());
   const [tiembla, setTiembla] = useState(null);
@@ -135,6 +143,11 @@ export default function MapaCarrera({ carrera }) {
         setOk(new Set(saved.a || []));
         setOri(saved.o || null);
         setNotas(saved.n && typeof saved.n === "object" ? saved.n : {});
+      }
+      const rawElec = localStorage.getItem(ELEC_KEY);
+      if (rawElec) {
+        const parsed = JSON.parse(rawElec);
+        if (parsed && typeof parsed === "object") setElec(parsed);
       }
     } catch (e) {
       /* sin avance guardado todavía */
@@ -153,6 +166,14 @@ export default function MapaCarrera({ carrera }) {
         JSON.stringify({ a: [...s], o: o ?? null, n: n ?? notas }),
       );
     } catch (e) {}
+  };
+
+  const persistirElec = (e) => {
+    try {
+      const limpio = e ?? elec;
+      if (Object.keys(limpio).length === 0) localStorage.removeItem(ELEC_KEY);
+      else localStorage.setItem(ELEC_KEY, JSON.stringify(limpio));
+    } catch (err) {}
   };
 
   const contextFor = (okSet, oriVal) => ({
@@ -207,6 +228,13 @@ export default function MapaCarrera({ carrera }) {
       delete nextN[it.id];
       setNotas(nextN);
     }
+    // Y descarta también sus elecciones de oferta (todas las del grupo).
+    if (desmarca && it.id in elec) {
+      const nextE = { ...elec };
+      delete nextE[it.id];
+      setElec(nextE);
+      persistirElec(nextE);
+    }
     const antes = disponibles(ok, ori);
     const despues = disponibles(next, ori);
     const recien = new Set([...despues].filter((x) => !antes.has(x)));
@@ -244,6 +272,18 @@ export default function MapaCarrera({ carrera }) {
     persistir(ok, ori, nextN);
   };
 
+  // Elige/limpia el seminario de un cupo de una tarjeta-grupo con oferta. `semId`
+  // es el id del seminario (o vacío para limpiar). Solo presentación: no toca ok.
+  const setEleccion = (it, index, semId) => {
+    const arr = Array.isArray(elec[it.id]) ? [...elec[it.id]] : [];
+    arr[index] = semId || null;
+    const next = { ...elec };
+    if (arr.every((x) => x == null)) delete next[it.id];
+    else next[it.id] = arr;
+    setElec(next);
+    persistirElec(next);
+  };
+
   const reset = () => {
     if (!confirma) {
       setConfirma(true);
@@ -256,6 +296,8 @@ export default function MapaCarrera({ carrera }) {
     setOri(null);
     setNotas(sinNotas);
     persistir(vacio, null, sinNotas);
+    setElec({});
+    persistirElec({});
     setConfirma(false);
     setNuevas(new Set());
   };
@@ -335,42 +377,87 @@ export default function MapaCarrera({ carrera }) {
       if (cupos > 1) return Array.isArray(v) && typeof v[i] === "number" ? v[i] : null;
       return typeof v === "number" ? v : null;
     };
+    // Oferta concreta nominada para este slot (solo la tarjeta cuyo id coincide
+    // con un slot con oferta cargada; [] para el resto → layout idéntico a hoy).
+    const ofertaLista = ofertaDeSlot(oferta, it.id);
+    const conOferta = ofertaLista.length > 0;
+    const elegidoDe = (i) => {
+      const v = elec[it.id];
+      return Array.isArray(v) && v[i] ? v[i] : null;
+    };
+
+    // Input de nota: mismo comportamiento en ambos layouts (con y sin oferta).
+    const notaInput = (i) => {
+      const txt = formatAR(valorDe(i));
+      return (
+        <input
+          key={`n${i}`}
+          className="nota-input"
+          type="text"
+          inputMode="decimal"
+          autoComplete="off"
+          placeholder="—"
+          defaultValue={txt}
+          data-prev={txt}
+          aria-label={cupos > 1 ? `Nota ${i + 1} de ${it.n}` : `Nota de ${it.n}`}
+          onChange={(e) => {
+            // Gate de tipeo permisivo: aceptar o revertir a lo último válido.
+            const v = e.currentTarget.value;
+            if (NOTA_TIPEO.test(v)) e.currentTarget.dataset.prev = v;
+            else e.currentTarget.value = e.currentTarget.dataset.prev ?? "";
+          }}
+          onBlur={(e) => {
+            // Commit: coma→punto y parseo. Válido en [4,10] → guarda; si no,
+            // limpia y no guarda (no clampear: un 3 no se convierte en 4).
+            const num = normalizeNota(e.currentTarget.value);
+            const out = num == null ? "" : formatAR(num);
+            e.currentTarget.value = out;
+            e.currentTarget.dataset.prev = out;
+            setNota(it, i, num);
+          }}
+        />
+      );
+    };
+
     return (
       <div className="card-slot" key={it.id}>
         {boton}
-        <div className="notas">
+        <div className={`notas${conOferta ? " con-oferta" : ""}`}>
           <span className="notas-lbl">{cupos > 1 ? `Notas · ${cupos} materias` : "Nota"}</span>
-          {Array.from({ length: cupos }, (_, i) => {
-            const txt = formatAR(valorDe(i));
-            return (
-              <input
-                key={i}
-                className="nota-input"
-                type="text"
-                inputMode="decimal"
-                autoComplete="off"
-                placeholder="—"
-                defaultValue={txt}
-                data-prev={txt}
-                aria-label={cupos > 1 ? `Nota ${i + 1} de ${it.n}` : `Nota de ${it.n}`}
-                onChange={(e) => {
-                  // Gate de tipeo permisivo: aceptar o revertir a lo último válido.
-                  const v = e.currentTarget.value;
-                  if (NOTA_TIPEO.test(v)) e.currentTarget.dataset.prev = v;
-                  else e.currentTarget.value = e.currentTarget.dataset.prev ?? "";
-                }}
-                onBlur={(e) => {
-                  // Commit: coma→punto y parseo. Válido en [4,10] → guarda; si no,
-                  // limpia y no guarda (no clampear: un 3 no se convierte en 4).
-                  const num = normalizeNota(e.currentTarget.value);
-                  const out = num == null ? "" : formatAR(num);
-                  e.currentTarget.value = out;
-                  e.currentTarget.dataset.prev = out;
-                  setNota(it, i, num);
-                }}
-              />
-            );
-          })}
+          {conOferta
+            ? Array.from({ length: cupos }, (_, i) => {
+                // Metadata de display: modalidad + badge TIF + link al PDF oficial.
+                // El slot/gate/peso/conteo NO cambian: la elección solo nomina.
+                const sem = ofertaLista.find((s) => s.id === elegidoDe(i)) || null;
+                return (
+                  <div className="cupo" key={`c${i}`}>
+                    <select
+                      className="cupo-sel"
+                      value={elegidoDe(i) || ""}
+                      aria-label={`Seminario ${i + 1} de ${it.n}`}
+                      onChange={(e) => setEleccion(it, i, e.target.value)}
+                    >
+                      <option value="">Elegí seminario…</option>
+                      {ofertaLista.map((s) => (
+                        <option key={s.id} value={s.id}>{s.titulo}</option>
+                      ))}
+                    </select>
+                    {notaInput(i)}
+                    {sem && (
+                      <span className="cupo-meta">
+                        <span className={`badge-mod ${sem.modalidad === "VIRTUAL" ? "virtual" : "presencial"}`}>
+                          {sem.modalidad}
+                        </span>
+                        {sem.tif && <span className="badge-tif">TIF</span>}
+                        <a className="cupo-pdf" href={sem.pdf} target="_blank" rel="noopener noreferrer">
+                          Programa ↗
+                        </a>
+                      </span>
+                    )}
+                  </div>
+                );
+              })
+            : Array.from({ length: cupos }, (_, i) => notaInput(i))}
         </div>
       </div>
     );
@@ -778,6 +865,37 @@ const CSS = `
   .nota-input::placeholder { color: var(--tinta2); opacity: .55; font-weight: 700; }
   .nota-input:focus-visible { outline: 3px solid var(--tinta); outline-offset: 1px; }
   .nota-input:not(:placeholder-shown):invalid { border-color: var(--no); background: var(--no-bg); }
+
+  /* ---------- Cupo con oferta concreta (Seminarios 504) ---------- */
+  /* Solo aparece en tarjetas-grupo con oferta cargada y ya aprobadas:
+     select del seminario + input de nota + metadata (modalidad/TIF/PDF).
+     El estado por defecto (sin marcar) no cambia → oráculo intacto. */
+  /* min-width:0 en la cadena flex + width:100% en el select evitan que las
+     opciones de título largo fuercen el ancho intrínseco del <select> y estiren
+     la tarjeta (overflow horizontal a ≤768px). Ver fix del selector. */
+  .notas.con-oferta { flex-direction: column; align-items: stretch; gap: 9px; min-width: 0; }
+  .cupo { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; min-width: 0; }
+  .cupo-sel {
+    flex: 1 1 180px; min-width: 0; max-width: 100%; width: 100%;
+    padding: 5px 8px; font-family: var(--body); font-size: 12px; font-weight: 700;
+    color: var(--tinta); background: var(--tarjeta);
+    border: 2px solid var(--tinta); border-radius: 7px; cursor: pointer;
+  }
+  .cupo-sel:focus-visible { outline: 3px solid var(--tinta); outline-offset: 1px; }
+  .cupo-meta { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .badge-mod, .badge-tif {
+    font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em;
+    padding: 1px 6px; border-radius: 999px; border: 1.5px solid currentColor;
+  }
+  .badge-mod.virtual { color: var(--ok-tx); }
+  .badge-mod.presencial { color: var(--go-tx); }
+  .badge-tif { color: var(--no-tx); border-style: dashed; }
+  .cupo-pdf {
+    font-size: 11px; font-weight: 700; color: var(--ok-tx);
+    text-decoration: none; border-bottom: 1px solid currentColor;
+  }
+  .cupo-pdf:hover { opacity: .8; }
+  .cupo-pdf:focus-visible { outline: 2px solid var(--tinta); outline-offset: 2px; border-radius: 2px; }
 
   .sello {
     position: absolute; top: -8px; right: 8px;
