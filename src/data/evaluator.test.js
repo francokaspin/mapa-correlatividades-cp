@@ -134,6 +134,33 @@ describe("evaluator", () => {
     expect(getSubjectStatus(plan.idioma.find((m) => m.id === "id2"), okSet, context)).toBe("no");
   });
 
+  it("CP: Idioma Nivel I no tiene gate de materias; II y III encadenados (sin fuente en la 8558/17)", () => {
+    const plan = cpData.plan;
+    const [id1, id2, id3] = plan.idioma;
+    const vacio = new Set();
+    const ctx = contextForPlan(plan, vacio);
+
+    // Nivel I: req vacío y sin min → disponible desde el estado vacío
+    expect(id1.req).toEqual([]);
+    expect(id1.min).toBeUndefined();
+    expect(getSubjectStatus(id1, vacio, ctx)).toBe("go");
+
+    // II y III siguen encadenados por nivel
+    expect(getSubjectStatus(id2, vacio, ctx)).toBe("no");
+    expect(getSubjectStatus(id2, new Set(["id1"]), contextForPlan(plan, new Set(["id1"])))).toBe("go");
+    expect(getSubjectStatus(id3, new Set(["id1"]), contextForPlan(plan, new Set(["id1"])))).toBe("no");
+    expect(getSubjectStatus(id3, new Set(["id1", "id2"]), contextForPlan(plan, new Set(["id1", "id2"])))).toBe("go");
+
+    // Anti-regresión: los gates de idioma CON fuente propia se conservan
+    const ing1 = RT_IDIOMA.find((m) => m.cod === 991); // RT: min 6 con fuente
+    expect(ing1.min).toBe(6);
+    const cc504Idi1 = CC504_IDIOMA[0]; // CC504: gate propio (min 6, en req)
+    expect(cc504Idi1.req.some((r) => r && r.min === 6)).toBe(true);
+    const [socioId1] = SOCIO_IDIOMA; // Sociología: régimen libre, Nivel I sin min
+    expect(socioId1.min).toBeUndefined();
+    expect(socioId1.req).toEqual([]);
+  });
+
   it("CP: el ciclo orientado pide 12 del general + la cabecera de la orientación", () => {
     const plan = cpData.plan;
     const ele1 = plan.orientado.find((m) => m.id === "ele1");
