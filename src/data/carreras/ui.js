@@ -15,12 +15,9 @@ export const CP_UI = {
   countBase: "general",
   countLabel: "del ciclo general",
   milestones: [
-    {
-      at: 6,
-      tick: "6 · idioma",
-      pillOn: "Idioma habilitado",
-      pillOff: (n) => `Idioma: faltan ${6 - n}`,
-    },
+    // Sin milestone de idioma: la 8558/17 no fija umbral y el Nivel I
+    // arranca disponible (ver cp.js, nota [c]). El único hito con fuente
+    // es el del ciclo orientado (12 aprobadas + cabecera).
     {
       at: 12,
       tick: "12 · c. orientado",
